@@ -57,8 +57,8 @@ public sealed class MeasurementResult
     public double? NumericValue { get; set; }
 
     /// <summary>
-    /// Hinweis auf eine Zusammenfassung mehrerer Einzelmessungen, z. B. "Mittel aus 6".
-    /// Wird vom Messwertfilter gesetzt und im Ergebnistext mit ausgegeben.
+    /// Hinweis auf eine Zusammenfassung mehrerer Einzelmessungen, z. B. "Min 49.82 / Max 67.28, n=6".
+    /// Wird vom Messwertfilter gesetzt und am Ende der Ergebniszeile ausgegeben.
     /// </summary>
     public string AggregationNote { get; set; } = string.Empty;
 
@@ -69,11 +69,11 @@ public sealed class MeasurementResult
         var qualifiers = new List<string>();
         if (!string.IsNullOrWhiteSpace(Method)) qualifiers.Add(Method);
         if (!string.IsNullOrWhiteSpace(DirectionOfFlow)) qualifiers.Add(DirectionOfFlow);
-        if (!string.IsNullOrWhiteSpace(AggregationNote)) qualifiers.Add(AggregationNote);
 
         var suffix = qualifiers.Count > 0 ? $" ({string.Join(", ", qualifiers)})" : string.Empty;
         var unit = string.IsNullOrWhiteSpace(Unit) ? string.Empty : " " + Unit;
-        return $"{label}{suffix}: {Value}{unit}";
+        var note = string.IsNullOrWhiteSpace(AggregationNote) ? string.Empty : $" ({AggregationNote})";
+        return $"{label}{suffix}: {Value}{unit}{note}";
     }
 
     /// <summary>Flache Kopie, damit der Filter aggregierte Werte bilden kann, ohne das Original zu veraendern.</summary>

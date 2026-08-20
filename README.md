@@ -190,7 +190,9 @@ Wichtige Einstellungen:
 | `Processing.MoveProcessedFiles` | `false` = Originaldatei bleibt am Ursprungsort |
 | `Processing.PreventDuplicateBy` | `SHA256_OR_SOPInstanceUID` |
 | `MeasurementShortNames` | Eigene Kurzbezeichnungen, Schlüssel = Code Meaning **oder** Concept-Code (`LN:29436-3`) |
+| `MethodShortNames` | Abkürzungen für lange Messmethoden-Bezeichnungen |
 | `MeasurementFilter` | Auswahl der Messwerte, siehe unten |
+| `GdtTemplate` | Eigener GDT-Aufbau, siehe unten |
 | `Update` | Zentrale Aktualisierung, siehe unten |
 
 ---
@@ -212,33 +214,94 @@ kein klinischer Wert verloren. Einstellbar in der GUI („Messwertfilter") oder 
 | `IncludeConcepts` / `ExcludeConcepts` | Muster für Concept-Code, Originalname oder Kurzname |
 | `IncludeFindingSites` / `ExcludeFindingSites` | Muster für die Region |
 | `IncludeImageModes` / `ExcludeImageModes` | Muster für den Aufnahmemodus |
-| `RepeatedValues` | `All`, `First`, `Last`, `Mean`, `Min`, `Max` |
+| `RepeatedValues` | `MinMaxMean` (Standard), `All`, `First`, `Last`, `Mean`, `Min`, `Max` |
 | `MaxMeasurements` | Obergrenze, `0` = unbegrenzt |
 
 **Regeln:** Muster erlauben `*` und `?` und sind nicht case-sensitiv. Ausschlusslisten haben
 Vorrang vor Einschlusslisten. Eine leere Einschlussliste bedeutet „alles zulassen".
 
-`RepeatedValues` fasst Wiederholungsmessungen derselben Messgröße zusammen — gruppiert nach
-Messgröße, Region, Methode, Aufnahmemodus, Herzzyklus und Flussrichtung. Bei `Mean`, `Min` und
-`Max` wird die Anzahl der Einzelmessungen im Ergebnistext vermerkt, damit nachvollziehbar bleibt,
-woraus der Wert entstanden ist:
+### Wiederholungsmessungen
+
+Der Vivid T8 misst dieselbe Größe je Herzschlag einzeln — ohne Zusammenfassung stehen
+sechs EF-Werte untereinander im Befund. `RepeatedValues` fasst sie zusammen, gruppiert nach
+Messgröße, Region, Methode, Aufnahmemodus, Herzzyklus und Flussrichtung.
+
+Standard ist **`MinMaxMean`**: eine Zeile mit Mittelwert, Spannweite und Anzahl — es geht
+kein Wert verloren und die Streuung bleibt sichtbar:
 
 ```
-EF (2D Auto EF, Mittel aus 6): 58,53 %
+EF (2D Auto EF): 58.53 % (Min 49.82 / Max 67.28, n=6)
 ```
 
-### Beispiel: kompakter Befund
+`Mean`, `Min` und `Max` geben nur den jeweiligen Wert aus, `All` alle Einzelwerte.
+
+### Kompakt-Vorgabe
+
+Die Schaltfläche **„Kompakt-Vorgabe setzen"** in der GUI stellt in einem Schritt ein:
+Wiederholungen zusammenfassen und die 18 Strain-Einzelsegmente ausblenden (der globale
+Strain-Wert GLPS bleibt erhalten). An der Referenzdatei sinkt die GDT-Datei damit von
+**323 auf 133 Zeilen**.
+
+Dasselbe in `settings.json`:
 
 ```json
 "MeasurementFilter": {
   "Enabled": true,
-  "OnlyMappedMeasurements": true,
-  "ExcludeFindingSites": [ "*segment" ],
-  "RepeatedValues": "Mean"
+  "RepeatedValues": "MinMaxMean",
+  "ExcludeFindingSites": [ "*segment" ]
 }
 ```
 
-Damit bleiben aus der Referenzdatei rund 30 aussagekräftige Zeilen übrig statt 200.
+### Lange Methodennamen
+
+Über `MethodShortNames` werden die teils sehr langen GE-Bezeichnungen gekürzt, damit eine
+Ergebniszeile nicht über mehrere GDT-Zeilen umgebrochen wird — z. B.
+`AFI with 18 segments following 2015 ASE recommendations` → `AFI 18 Segm.`
+
+---
+
+## GDT-Aufbau selbst festlegen
+
+Über **„GDT-Aufbau bearbeiten"** in der GUI lässt sich frei bestimmen, welche Felder in der
+Datei stehen und was drin steht — ohne Codekenntnisse:
+
+* Jede Zeile ist ein GDT-Feld mit **Ankreuzbox**, Feldkennung, Inhalt und Klartextbeschreibung
+* Zeilen lassen sich hinzufügen, entfernen und verschieben
+* **Platzhalter** in geschweiften Klammern werden beim Erzeugen ersetzt — per Doppelklick
+  aus der Liste in die ausgewählte Zeile einfügbar
+* Zwei Live-Vorschauen: einmal lesbar wie im Krankenblatt, einmal die technische GDT-Datei
+* **„Standard wiederherstellen"** setzt den eingebauten Aufbau zurück
+
+Ohne den Haken *„Eigenen GDT-Aufbau verwenden"* bleibt der fest eingebaute Standardaufbau
+der Satzart 6310 aktiv; die Vorlage bleibt trotzdem gespeichert.
+
+### Verfügbare Platzhalter
+
+| Platzhalter | Inhalt |
+|---|---|
+| `{PatientNummer}` `{Nachname}` `{Vorname}` | Patientenstammdaten |
+| `{Geburtsdatum}` / `{GeburtsdatumLang}` | `TTMMJJJJ` bzw. `TT.MM.JJJJ` |
+| `{Geschlecht}` | GDT-Code (1 = m, 2 = w) |
+| `{Untersuchungsdatum}` `{Untersuchungszeit}` | GDT-Format |
+| `{DatumLang}` `{ZeitLang}` | lesbar `TT.MM.JJJJ` / `HH:MM:SS` |
+| `{Anforderungsnummer}` | Accession Number |
+| `{Geraet}` `{Hersteller}` `{Modell}` | Geräteangaben |
+| `{Untersuchungsart}` `{Ueberschrift}` | Berichtstitel |
+| `{SopInstanceUid}` `{StudyInstanceUid}` | DICOM-Kennungen |
+| `{Empfaenger}` `{Sender}` `{Geraetekennung}` `{TestId}` `{TestBezeichnung}` | aus den GDT-Einstellungen |
+| `{GdtVersion}` `{Zeichensatz}` `{AnzahlMesswerte}` `{Heute}` | Zusatzangaben |
+| `{Messwerte}` | alle Messwerte, nach Region gruppiert — **erzeugt mehrere Zeilen** |
+| `{MesswerteOhneGruppen}` | dasselbe ohne Gruppenüberschriften |
+
+Beispiel für eine eigene Zeile im Feld `6220`:
+
+```
+Befund vom {DatumLang} — {Ueberschrift} ({AnzahlMesswerte} Messwerte)
+```
+
+**Zwei eingebaute Sicherungen:** Zeilen ohne gültige vierstellige Feldkennung werden
+übersprungen statt eine kaputte Datei zu erzeugen, und Zeilen, deren Platzhalter keinen
+Wert liefern, entfallen — so steht nie `Accession: ` ohne Inhalt im Befund.
 
 ---
 

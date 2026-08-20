@@ -24,6 +24,9 @@ public sealed class AppSettings
     /// <summary>Automatische Aktualisierung des Tools.</summary>
     public UpdateSettings Update { get; set; } = new();
 
+    /// <summary>Frei zusammenstellbarer Aufbau der GDT-Datei (Vorlagen-Editor in der GUI).</summary>
+    public Templates.GdtTemplate GdtTemplate { get; set; } = Templates.GdtTemplate.CreateDefault();
+
     /// <summary>Ablageort der SQLite-Registry. Leer = Standardpfad neben der Konfigurationsdatei.</summary>
     public string RegistryDatabasePath { get; set; } = string.Empty;
 
@@ -32,6 +35,9 @@ public sealed class AppSettings
 
     /// <summary>Optionale Zuordnung von SR-Bezeichnungen auf Kurznamen (Concept-Code oder Code Meaning als Schluessel).</summary>
     public Dictionary<string, string> MeasurementShortNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Optionale Abkuerzungen fuer Messmethoden, z. B. lange AFI-Bezeichnungen.</summary>
+    public Dictionary<string, string> MethodShortNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class GdtSettings
@@ -149,7 +155,10 @@ public enum RepeatedValueMode
     Min,
 
     /// <summary>Groesster Einzelwert, mit Hinweis auf die Anzahl.</summary>
-    Max
+    Max,
+
+    /// <summary>Eine Zeile mit Mittelwert sowie Minimum, Maximum und Anzahl der Messungen.</summary>
+    MinMaxMean
 }
 
 /// <summary>
@@ -162,8 +171,12 @@ public enum RepeatedValueMode
 /// </summary>
 public sealed class MeasurementFilterSettings
 {
-    /// <summary>Filter aktiv. Standard false: alle gefundenen Messwerte werden uebertragen.</summary>
-    public bool Enabled { get; set; }
+    /// <summary>
+    /// Filter aktiv. Standard true mit <see cref="RepeatedValueMode.MinMaxMean"/>: der Vivid T8
+    /// liefert dieselbe Messgroesse je Herzschlag einzeln, was den Befund unlesbar lang macht.
+    /// Es geht dabei kein Wert verloren - Minimum, Maximum und Anzahl stehen in der Zeile.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
 
     /// <summary>Nur Messwerte, fuer die eine Kurzbezeichnung gemappt ist.</summary>
     public bool OnlyMappedMeasurements { get; set; }
@@ -187,7 +200,7 @@ public sealed class MeasurementFilterSettings
     public List<string> ExcludeImageModes { get; set; } = [];
 
     /// <summary>Umgang mit Wiederholungsmessungen derselben Messgroesse.</summary>
-    public RepeatedValueMode RepeatedValues { get; set; } = RepeatedValueMode.All;
+    public RepeatedValueMode RepeatedValues { get; set; } = RepeatedValueMode.MinMaxMean;
 
     /// <summary>Obergrenze der Messwerte im Ergebnistext. 0 = unbegrenzt.</summary>
     public int MaxMeasurements { get; set; }

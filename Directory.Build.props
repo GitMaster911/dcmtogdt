@@ -7,7 +7,7 @@
     <Company>brans IT solutions</Company>
     <Product>DCMtoGDTReports</Product>
     <Copyright>© brans IT solutions</Copyright>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 </Project>

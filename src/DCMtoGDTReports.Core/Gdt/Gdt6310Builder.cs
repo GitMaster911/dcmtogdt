@@ -37,10 +37,17 @@ public sealed class Gdt6310Builder(GdtSettings settings)
     private readonly GdtSettings _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly GdtReportComposer _composer = new(settings);
 
+    /// <summary>Optionale Vorlage. Ist sie gesetzt und aktiv, bestimmt sie den Aufbau der Datei.</summary>
+    public Templates.GdtTemplate? Template { get; set; }
+
     /// <summary>Stellt den kompletten Satz als Feldliste zusammen (ohne Feld 8100).</summary>
     public IReadOnlyList<GdtField> BuildFields(SrReport report)
     {
         ArgumentNullException.ThrowIfNull(report);
+
+        if (Template is { Enabled: true, Lines.Count: > 0 })
+            return new Templates.GdtTemplateEngine(_settings).Build(Template, report);
+
         var header = report.Header;
         var fields = new List<GdtField>
         {

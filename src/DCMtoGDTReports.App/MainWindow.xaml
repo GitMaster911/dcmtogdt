@@ -221,6 +221,10 @@
                                 <TextBox Grid.Row="4" Grid.Column="1"
                                          Text="{Binding FilterMaxMeasurements, UpdateSourceTrigger=LostFocus}" />
                             </Grid>
+
+                            <Button Content="Kompakt-Vorgabe setzen" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                    ToolTip="Wiederholungsmessungen zusammenfassen und Strain-Einzelsegmente ausblenden"
+                                    Command="{Binding ApplyCompactProfileCommand}" />
                         </StackPanel>
                     </Border>
 
@@ -325,6 +329,9 @@
                                         Command="{Binding AnalyzeTestFileCommand}" />
                                 <Button Content="GDT Testdatei erzeugen" Margin="0,0,8,8"
                                         Command="{Binding CreateTestGdtCommand}" />
+                                <Button Content="GDT-Aufbau bearbeiten" Margin="0,0,8,8"
+                                        ToolTip="Felder der GDT-Datei per Ankreuzbox und Platzhalter zusammenstellen"
+                                        Command="{Binding EditTemplateCommand}" />
                                 <Button Content="{Binding WatcherButtonText}" Margin="0,0,8,8"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Command="{Binding ToggleWatcherCommand}" />

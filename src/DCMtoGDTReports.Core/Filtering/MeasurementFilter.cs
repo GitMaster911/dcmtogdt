@@ -106,21 +106,29 @@ public sealed class MeasurementFilter(
         var numeric = group.Where(m => m.NumericValue.HasValue).ToList();
         if (numeric.Count == 0) return group[0]; // Nicht rechenbar - ersten Wert behalten.
 
+        var mean = numeric.Average(m => m.NumericValue!.Value);
+        var min = numeric.Min(m => m.NumericValue!.Value);
+        var max = numeric.Max(m => m.NumericValue!.Value);
+
         var (value, note) = _settings.RepeatedValues switch
         {
-            RepeatedValueMode.Mean => (numeric.Average(m => m.NumericValue!.Value), "Mittel"),
-            RepeatedValueMode.Min => (numeric.Min(m => m.NumericValue!.Value), "Minimum"),
-            RepeatedValueMode.Max => (numeric.Max(m => m.NumericValue!.Value), "Maximum"),
+            RepeatedValueMode.Mean => (mean, $"Mittel aus {numeric.Count}"),
+            RepeatedValueMode.Min => (min, $"Minimum aus {numeric.Count}"),
+            RepeatedValueMode.Max => (max, $"Maximum aus {numeric.Count}"),
+            RepeatedValueMode.MinMaxMean => (mean, $"Min {Format(min)} / Max {Format(max)}, n={numeric.Count}"),
             _ => (numeric[0].NumericValue!.Value, string.Empty)
         };
 
         var condensed = group[0].Clone();
         condensed.NumericValue = value;
         condensed.RawValue = value.ToString("R", CultureInfo.InvariantCulture);
-        condensed.Value = DicomValueConverter.FormatNumeric(condensed.RawValue, _gdt.DecimalPlaces, _gdt.DecimalSeparator);
-        condensed.AggregationNote = $"{note} aus {numeric.Count}";
+        condensed.Value = Format(value);
+        condensed.AggregationNote = note;
         return condensed;
     }
+
+    private string Format(double value) => DicomValueConverter.FormatNumeric(
+        value.ToString("R", CultureInfo.InvariantCulture), _gdt.DecimalPlaces, _gdt.DecimalSeparator);
 
     /// <summary>Alles ausser dem eigentlichen Zahlenwert bildet die Messgroesse.</summary>
     private static string BuildGroupKey(MeasurementResult m) => string.Join('|',

@@ -23,10 +23,12 @@ public sealed class SrFileProcessor(
     private readonly AppSettings _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly IProcessedFileRegistry _registry = registry ?? throw new ArgumentNullException(nameof(registry));
     private readonly ILogger _logger = logger ?? NullLogger<SrFileProcessor>.Instance;
-    private readonly MeasurementMapper _mapper = new(settings.MeasurementShortNames);
-    private readonly GdtFileWriter _gdtWriter = new(settings.Gdt);
-    private readonly MeasurementFilter _filter =
-        new(settings.MeasurementFilter, settings.Gdt, new MeasurementMapper(settings.MeasurementShortNames));
+    private readonly MeasurementMapper _mapper = new(settings.MeasurementShortNames, settings.MethodShortNames);
+    private readonly GdtFileWriter _gdtWriter = new(settings.Gdt, settings.GdtTemplate);
+    private readonly MeasurementFilter _filter = new(
+        settings.MeasurementFilter,
+        settings.Gdt,
+        new MeasurementMapper(settings.MeasurementShortNames, settings.MethodShortNames));
 
     /// <summary>Wertet eine SR-Datei aus, ohne etwas zu schreiben (Button "Testdatei analysieren").</summary>
     public async Task<SrReport> AnalyzeAsync(string sourceFilePath, string? debugXmlPath = null, CancellationToken ct = default)

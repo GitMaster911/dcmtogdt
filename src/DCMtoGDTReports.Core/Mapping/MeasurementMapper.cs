@@ -12,29 +12,46 @@ namespace DCMtoGDTReports.Core.Mapping;
 public sealed class MeasurementMapper
 {
     private readonly Dictionary<string, string> _map;
+    private readonly Dictionary<string, string> _methods;
 
-    public MeasurementMapper(IReadOnlyDictionary<string, string>? userMappings = null)
+    public MeasurementMapper(
+        IReadOnlyDictionary<string, string>? userMappings = null,
+        IReadOnlyDictionary<string, string>? methodMappings = null)
     {
         _map = new Dictionary<string, string>(DefaultShortNames, StringComparer.OrdinalIgnoreCase);
+        _methods = new Dictionary<string, string>(DefaultMethodNames, StringComparer.OrdinalIgnoreCase);
 
         // Benutzerdefinierte Eintraege ueberschreiben die Standardzuordnung.
-        if (userMappings is null) return;
-        foreach (var (key, value) in userMappings)
+        Merge(_map, userMappings);
+        Merge(_methods, methodMappings);
+    }
+
+    private static void Merge(Dictionary<string, string> target, IReadOnlyDictionary<string, string>? source)
+    {
+        if (source is null) return;
+        foreach (var (key, value) in source)
         {
-            if (!string.IsNullOrWhiteSpace(key))
-                _map[key.Trim()] = value;
+            if (!string.IsNullOrWhiteSpace(key)) target[key.Trim()] = value;
         }
     }
 
-    /// <summary>Setzt Kurzname und formatierten Wert auf allen Messwerten.</summary>
+    /// <summary>Setzt Kurzname, gekuerzte Methode und formatierten Wert auf allen Messwerten.</summary>
     public void Apply(IEnumerable<MeasurementResult> measurements, GdtSettings settings)
     {
         foreach (var measurement in measurements)
         {
             measurement.ShortName = ResolveShortName(measurement);
+            measurement.Method = ResolveMethod(measurement.Method);
             measurement.Value = DicomValueConverter.FormatNumeric(
                 measurement.RawValue, settings.DecimalPlaces, settings.DecimalSeparator);
         }
+    }
+
+    /// <summary>Kuerzt die Messmethode, falls eine Abkuerzung hinterlegt ist.</summary>
+    public string ResolveMethod(string method)
+    {
+        if (string.IsNullOrWhiteSpace(method)) return string.Empty;
+        return _methods.TryGetValue(method, out var mapped) ? mapped : method;
     }
 
     public string ResolveShortName(MeasurementResult measurement)
@@ -116,5 +133,25 @@ public sealed class MeasurementMapper
             ["Aortic Valve Closure"] = "AVC",
             ["Time duration of the VTI trace on Aortic Valve"] = "AV VTI-Dauer",
             ["Time duration of the VTI trace on LVOT"] = "LVOT VTI-Dauer"
+        };
+
+    /// <summary>
+    /// Abkuerzungen fuer die teils sehr langen Methodenbezeichnungen des Vivid T8.
+    /// Ohne sie wuerde eine einzige Ergebniszeile ueber mehrere GDT-Zeilen umgebrochen.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> DefaultMethodNames { get; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AFI with 18 segments following 2015 ASE recommendations"] = "AFI 18 Segm.",
+            ["AFI with 17 segments following 2015 ASE recommendations"] = "AFI 17 Segm.",
+            ["AFI with 16 segments following 2015 ASE recommendations"] = "AFI 16 Segm.",
+            ["Left Ventricle Mass by M-mode"] = "M-Mode",
+            ["Left Ventricle Mass by Truncated Ellipse"] = "Trunk. Ellipse",
+            ["Continuity Equation by Peak Velocity"] = "Kontinuitaet Vmax",
+            ["Continuity Equation by Velocity Time Integral"] = "Kontinuitaet VTI",
+            ["Continuity Equation by Mean Velocity"] = "Kontinuitaet Vmean",
+            ["Modified Simpson"] = "Simpson",
+            ["Single Plane Ellipse"] = "Einzelebene",
+            ["Area length"] = "Flaeche/Laenge"
         };
 }

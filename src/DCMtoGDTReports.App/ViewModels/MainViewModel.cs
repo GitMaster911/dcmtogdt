@@ -39,6 +39,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private SrFileProcessor _processor;
     private FolderWatcherService? _watcher;
     private UpdateManifest? _pendingUpdate;
+    private SrReport? _lastReport;
 
     public MainViewModel()
     {
@@ -74,6 +75,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         CheckForUpdatesCommand = new RelayCommand(() => CheckForUpdatesAsync(silent: false));
         InstallUpdateCommand = new RelayCommand(InstallUpdateAsync, () => _pendingUpdate is not null);
+        EditTemplateCommand = new RelayCommand(EditTemplate);
+        ApplyCompactProfileCommand = new RelayCommand(ApplyCompactProfile);
 
         RefreshDcmtkStatus();
         RefreshDashboard();
@@ -100,6 +103,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand BrowseDcmtkCommand { get; }
     public RelayCommand CheckForUpdatesCommand { get; }
     public RelayCommand InstallUpdateCommand { get; }
+    public RelayCommand EditTemplateCommand { get; }
+    public RelayCommand ApplyCompactProfileCommand { get; }
 
     #endregion
 
@@ -336,6 +341,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var report = await Task.Run(() => _processor.AnalyzeAsync(file)).ConfigureAwait(true);
+            _lastReport = report;
             AnalysisText = BuildAnalysisText(report);
             Log($"Analyse abgeschlossen: {report.Measurements.Count} Messwerte aus {Path.GetFileName(file)}.");
             StatusText = $"Analyse abgeschlossen: {report.Measurements.Count} Messwerte";
@@ -363,7 +369,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         try
         {
             var report = await Task.Run(() => _processor.AnalyzeAsync(file)).ConfigureAwait(true);
-            var writer = new GdtFileWriter(_settings.Gdt);
+            _lastReport = report;
+            var writer = new GdtFileWriter(_settings.Gdt, _settings.GdtTemplate);
             var path = writer.Write(report, OutputFolder);
 
             AnalysisText = BuildAnalysisText(report)
@@ -584,6 +591,41 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Log(UpdateStatus);
             MessageBox.Show(ex.Message, "Update fehlgeschlagen", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    #endregion
+
+    #region GDT-Aufbau
+
+    /// <summary>Oeffnet den Vorlagen-Editor. Als Vorschau dient die zuletzt analysierte Datei.</summary>
+    private void EditTemplate()
+    {
+        var dialog = new TemplateEditorWindow(_settings, _lastReport) { Owner = Application.Current?.MainWindow };
+        if (dialog.ShowDialog() != true) return;
+
+        _settings.GdtTemplate = dialog.EditedTemplate;
+        SaveSettings();
+
+        Log(_settings.GdtTemplate.Enabled
+            ? $"Eigener GDT-Aufbau aktiv ({_settings.GdtTemplate.Lines.Count(l => l.Enabled)} aktive Zeilen)."
+            : "GDT-Aufbau gespeichert, es wird weiter der Standardaufbau verwendet.");
+    }
+
+    /// <summary>
+    /// Setzt eine kompakte Befundausgabe: Wiederholungsmessungen werden zusammengefasst und
+    /// die 18 Strain-Einzelsegmente entfallen. Der globale Strain-Wert bleibt erhalten.
+    /// </summary>
+    private void ApplyCompactProfile()
+    {
+        FilterEnabled = true;
+        FilterRepeatedValues = RepeatedValueMode.MinMaxMean;
+        FilterExcludeFindingSites = "*segment";
+        FilterOnlyMapped = false;
+        FilterOnlySelected = false;
+        FilterMaxMeasurements = 0;
+
+        SaveSettings();
+        Log("Kompakt-Vorgabe gesetzt: Wiederholungen zusammengefasst, Strain-Einzelsegmente ausgeblendet.");
     }
 
     #endregion

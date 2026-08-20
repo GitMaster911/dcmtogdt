@@ -31,22 +31,36 @@ public sealed class GdtReportComposer(GdtSettings settings)
         lines.Add(string.Empty);
 
         lines.Add("Messwerte:");
+        lines.AddRange(BuildMeasurementLines(report, withGroups: true));
+
+        return WrapLines(lines);
+    }
+
+    /// <summary>
+    /// Nur der Messwertteil, wahlweise nach Region gruppiert. Wird auch vom Vorlagen-Editor
+    /// ueber den Platzhalter {Messwerte} verwendet.
+    /// </summary>
+    public IReadOnlyList<string> BuildMeasurementLines(SrReport report, bool withGroups)
+    {
         if (report.Measurements.Count == 0)
-        {
-            lines.Add("Keine numerischen Messwerte im Structured Report enthalten.");
-        }
-        else
+            return WrapLines(["Keine numerischen Messwerte im Structured Report enthalten."]);
+
+        var lines = new List<string>();
+        if (withGroups)
         {
             // Nach Finding Site / Image Mode gruppieren, damit der Krankenblatteintrag lesbar bleibt.
             foreach (var group in report.Measurements.GroupBy(m => m.Group, StringComparer.OrdinalIgnoreCase))
             {
                 lines.Add($"[{group.Key}]");
-                foreach (var measurement in group)
-                    lines.Add(measurement.ToDisplayLine());
+                lines.AddRange(group.Select(m => m.ToDisplayLine()));
                 lines.Add(string.Empty);
             }
 
-            if (lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
+            if (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
+        }
+        else
+        {
+            lines.AddRange(report.Measurements.Select(m => m.ToDisplayLine()));
         }
 
         return WrapLines(lines);

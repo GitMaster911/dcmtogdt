@@ -54,6 +54,7 @@ public class MeasurementFilterTests
         var result = Create(new MeasurementFilterSettings
         {
             Enabled = true,
+            RepeatedValues = RepeatedValueMode.All,
             ExcludeFindingSites = ["*segment"]
         }).Apply(Sample());
 
@@ -64,7 +65,12 @@ public class MeasurementFilterTests
     [Fact]
     public void IncludeConcepts_TrifftAufKurznameCodeUndOriginalname()
     {
-        var settings = new MeasurementFilterSettings { Enabled = true, IncludeConcepts = ["EF", "LN:11726-7"] };
+        var settings = new MeasurementFilterSettings
+        {
+            Enabled = true,
+            RepeatedValues = RepeatedValueMode.All,
+            IncludeConcepts = ["EF", "LN:11726-7"]
+        };
 
         var result = Create(settings).Apply(Sample());
 
@@ -142,6 +148,28 @@ public class MeasurementFilterTests
         var ef = Create(settings).Apply(Sample()).Single(m => m.ShortName == "EF");
 
         Assert.Equal(expected, ef.Value);
+    }
+
+    [Fact]
+    public void RepeatedValuesMinMaxMean_ZeigtMittelwertMitSpannweiteUndAnzahl()
+    {
+        var settings = new MeasurementFilterSettings { Enabled = true, RepeatedValues = RepeatedValueMode.MinMaxMean };
+
+        var ef = Create(settings).Apply(Sample()).Single(m => m.ShortName == "EF");
+
+        Assert.Equal("58.42", ef.Value);
+        Assert.Equal("Min 49.82 / Max 67.28, n=3", ef.AggregationNote);
+        Assert.Equal("EF: 58.42 % (Min 49.82 / Max 67.28, n=3)", ef.ToDisplayLine());
+    }
+
+    [Fact]
+    public void RepeatedValuesMinMaxMean_EinzelmessungBleibtOhneZusatz()
+    {
+        var settings = new MeasurementFilterSettings { Enabled = true, RepeatedValues = RepeatedValueMode.MinMaxMean };
+
+        var vmax = Create(settings).Apply(Sample()).Single(m => m.ShortName == "Vmax");
+
+        Assert.Empty(vmax.AggregationNote);
     }
 
     [Fact]

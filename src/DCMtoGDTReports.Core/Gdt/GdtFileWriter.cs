@@ -19,10 +19,10 @@ public sealed class GdtFileWriter
     private readonly GdtSettings _settings;
     private readonly Gdt6310Builder _builder;
 
-    public GdtFileWriter(GdtSettings settings)
+    public GdtFileWriter(GdtSettings settings, Templates.GdtTemplate? template = null)
     {
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-        _builder = new Gdt6310Builder(settings);
+        _builder = new Gdt6310Builder(settings) { Template = template };
         Encoding = ResolveEncoding(settings.EncodingCodePage);
     }
 
