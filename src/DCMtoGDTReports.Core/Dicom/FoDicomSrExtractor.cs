@@ -199,11 +199,14 @@ public sealed class FoDicomSrExtractor : ISrExtractor
 
     /// <summary>
     /// UCUM-Kuerzel bevorzugen ("cm" statt "centimeter"), da der Ergebnistext in GDT kurz bleiben muss.
+    /// Die UCUM-Einheit "1" steht fuer dimensionslose Verhaeltnisse (z. B. E/A) und wird weggelassen.
     /// </summary>
     private static string ShortenUnit(SrCode unit)
     {
         if (unit.IsEmpty) return string.Empty;
-        return string.IsNullOrWhiteSpace(unit.Value) ? unit.Meaning : unit.Value;
+
+        var value = string.IsNullOrWhiteSpace(unit.Value) ? unit.Meaning : unit.Value;
+        return value.Trim() is "1" or "" ? string.Empty : value;
     }
 
     private static SrCode ReadCode(DicomDataset ds, DicomTag sequenceTag)

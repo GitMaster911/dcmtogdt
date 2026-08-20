@@ -87,7 +87,9 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
         _previewReport = previewReport ?? CreateDemoReport();
         _encoding = new GdtFileWriter(settings.Gdt).Encoding;
 
-        Catalog = new CatalogSelectionViewModel(catalog);
+        Catalog = new CatalogSelectionViewModel(catalog, new MeasurementMapper(
+            settings.MeasurementShortNames, settings.MethodShortNames,
+            settings.RegionNames, settings.ImageModeNames));
         Catalog.SelectionChanged += (_, _) => UpdatePreview();
 
         var template = settings.GdtTemplate is { Lines.Count: > 0 }
@@ -266,29 +268,51 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Wendet die aktuelle Ankreuzauswahl auf die Vorschaudaten an.</summary>
+    /// <summary>Wendet die aktuelle Ankreuzauswahl und die deutschen Bezeichnungen auf die Vorschaudaten an.</summary>
     private SrReport BuildFilteredPreviewReport()
     {
         var source = _previewReport.AllMeasurements.Count > 0
             ? _previewReport.AllMeasurements
             : _previewReport.Measurements;
 
+        var catalog = Catalog.ToCatalog();
+
+        // Auf Kopien arbeiten, damit die Vorschau die Originaldaten nicht veraendert.
+        var working = source.Select(m => m.Clone()).ToList();
+
         var report = new SrReport
         {
             Header = _previewReport.Header,
             Engine = _previewReport.Engine,
-            Measurements = source,
+            Measurements = working,
             RawMeasurementCount = _previewReport.RawMeasurementCount
         };
 
         var filter = new MeasurementFilter(
             _settings.MeasurementFilter,
             _gdtSettings,
-            new MeasurementMapper(_settings.MeasurementShortNames, _settings.MethodShortNames),
-            Catalog.ToCatalog());
+            BuildMapper(catalog),
+            catalog);
 
-        report.ApplyFilteredMeasurements(filter.Apply(source));
+        report.ApplyFilteredMeasurements(filter.Apply(working));
+        BuildMapper(catalog).ApplyGermanNames(report.Measurements);
         return report;
+    }
+
+    private MeasurementMapper BuildMapper(MeasurementCatalog catalog) => new(
+        Combine(_settings.MeasurementShortNames, MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.Measurement)),
+        _settings.MethodShortNames,
+        Combine(_settings.RegionNames, MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.Region)),
+        Combine(_settings.ImageModeNames, MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.ImageMode)));
+
+    private static Dictionary<string, string> Combine(
+        IReadOnlyDictionary<string, string>? settings, IReadOnlyDictionary<string, string> catalog)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (settings is not null)
+            foreach (var (key, value) in settings) result[key] = value;
+        foreach (var (key, value) in catalog) result[key] = value;
+        return result;
     }
 
     /// <summary>Beispieldaten, falls noch keine SR-Datei analysiert wurde.</summary>

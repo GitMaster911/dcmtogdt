@@ -49,8 +49,9 @@ public sealed class SrFileProcessor(
     }
 
     /// <summary>
-    /// Kurznamen und Zahlenformat anwenden, aus dem Bericht lernen und danach den
-    /// konfigurierten Messwertfilter samt Katalogauswahl anwenden.
+    /// Kurznamen und Zahlenformat anwenden, aus dem Bericht lernen, filtern und zum Schluss
+    /// die deutschen Bezeichnungen setzen. Die Reihenfolge ist wichtig: Katalog und Filter
+    /// arbeiten mit den DICOM-Originalbezeichnungen, erst die Ausgabe wird uebersetzt.
     /// </summary>
     private void PrepareMeasurements(SrReport report)
     {
@@ -60,10 +61,41 @@ public sealed class SrFileProcessor(
         var filter = new MeasurementFilter(
             _settings.MeasurementFilter,
             _settings.Gdt,
-            new MeasurementMapper(_settings.MeasurementShortNames, _settings.MethodShortNames),
+            CreateMapper(),
             catalog);
 
         report.ApplyFilteredMeasurements(filter.Apply(report.Measurements));
+        CreateMapper(catalog).ApplyGermanNames(report.Measurements);
+    }
+
+    /// <summary>
+    /// Baut den Mapper aus den Einstellungen und - falls vorhanden - den im Katalog
+    /// hinterlegten eigenen Bezeichnungen. Diese haben Vorrang vor den Vorgaben.
+    /// </summary>
+    private MeasurementMapper CreateMapper(MeasurementCatalog? catalog = null)
+    {
+        var measurementNames = Combine(_settings.MeasurementShortNames,
+            catalog is null ? null : MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.Measurement));
+        var regionNames = Combine(_settings.RegionNames,
+            catalog is null ? null : MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.Region));
+        var imageModeNames = Combine(_settings.ImageModeNames,
+            catalog is null ? null : MeasurementCatalogService.GetCustomNames(catalog, CatalogEntryKind.ImageMode));
+
+        return new MeasurementMapper(measurementNames, _settings.MethodShortNames, regionNames, imageModeNames);
+    }
+
+    private static Dictionary<string, string> Combine(
+        IReadOnlyDictionary<string, string>? settings, IReadOnlyDictionary<string, string>? catalog)
+    {
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (settings is not null)
+            foreach (var (key, value) in settings) result[key] = value;
+
+        // Der Katalog wird zuletzt angewendet und gewinnt damit gegen die Konfiguration.
+        if (catalog is not null)
+            foreach (var (key, value) in catalog) result[key] = value;
+
+        return result;
     }
 
     /// <summary>

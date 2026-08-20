@@ -30,6 +30,12 @@ public sealed class CatalogEntry
     /// <summary>Kurzbezeichnung, sofern gemappt.</summary>
     public string ShortName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Eigene deutsche Bezeichnung. Leer = die eingebaute Uebersetzung bzw. der
+    /// englische Originaltext aus dem DICOM-Bericht wird verwendet.
+    /// </summary>
+    public string CustomName { get; set; } = string.Empty;
+
     public CatalogEntryKind Kind { get; set; }
 
     /// <summary>Wird uebernommen. Neue Eintraege sind bewusst immer ausgewaehlt.</summary>
@@ -42,6 +48,16 @@ public sealed class CatalogEntry
     public int SeenCount { get; set; }
 
     public DateTime LastSeenUtc { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Art des Eintrags im Klartext - Spalte in der Auswahlliste.</summary>
+    [JsonIgnore]
+    public string KindText => Kind switch
+    {
+        CatalogEntryKind.Measurement => "Messgroesse",
+        CatalogEntryKind.Region => "Region",
+        CatalogEntryKind.ImageMode => "Modus",
+        _ => Kind.ToString()
+    };
 
     /// <summary>Anzeigetext fuer die Auswahlliste.</summary>
     [JsonIgnore]
@@ -96,6 +112,7 @@ public sealed class MeasurementCatalog
         Key = e.Key,
         DisplayName = e.DisplayName,
         ShortName = e.ShortName,
+        CustomName = e.CustomName,
         Kind = e.Kind,
         Selected = e.Selected,
         Unit = e.Unit,

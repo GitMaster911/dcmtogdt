@@ -41,6 +41,12 @@ public sealed class AppSettings
 
     /// <summary>Optionale Abkuerzungen fuer Messmethoden, z. B. lange AFI-Bezeichnungen.</summary>
     public Dictionary<string, string> MethodShortNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Deutsche Bezeichnungen der anatomischen Regionen (ueberschreibt die Vorgaben).</summary>
+    public Dictionary<string, string> RegionNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Deutsche Bezeichnungen der Aufnahmemodi (ueberschreibt die Vorgaben).</summary>
+    public Dictionary<string, string> ImageModeNames { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class GdtSettings

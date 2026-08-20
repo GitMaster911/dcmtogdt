@@ -93,6 +93,35 @@ public sealed class MeasurementCatalogService
         return added;
     }
 
+    /// <summary>
+    /// Liefert die vom Benutzer vergebenen Bezeichnungen als Nachschlagetabelle.
+    /// Nur Eintraege mit eigener Bezeichnung sind enthalten.
+    /// </summary>
+    public static Dictionary<string, string> GetCustomNames(MeasurementCatalog catalog, CatalogEntryKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+
+        var source = kind switch
+        {
+            CatalogEntryKind.Measurement => catalog.Measurements,
+            CatalogEntryKind.Region => catalog.Regions,
+            CatalogEntryKind.ImageMode => catalog.ImageModes,
+            _ => []
+        };
+
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in source.Where(e => !string.IsNullOrWhiteSpace(e.CustomName)))
+        {
+            result[entry.Key] = entry.CustomName.Trim();
+
+            // Regionen und Modi werden im Bericht ueber ihren Klartext gefunden, nicht ueber einen Code.
+            if (!string.IsNullOrWhiteSpace(entry.DisplayName))
+                result[entry.DisplayName] = entry.CustomName.Trim();
+        }
+
+        return result;
+    }
+
     /// <summary>Schluessel einer Messgroesse: bevorzugt der Concept-Code, sonst der Name.</summary>
     public static string MeasurementKey(MeasurementResult measurement)
         => string.IsNullOrWhiteSpace(measurement.SourceCode) ? measurement.Name : measurement.SourceCode;

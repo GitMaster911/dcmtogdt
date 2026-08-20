@@ -198,6 +198,34 @@ Wichtige Einstellungen:
 
 ---
 
+## Deutsche Bezeichnungen
+
+DICOM liefert ausschließlich englische Texte. Für den Krankenblatteintrag übersetzt das
+Programm **Regionen, Aufnahmemodi und Flussrichtungen** ins Deutsche:
+
+```
+[Left Ventricle / 2D mode]              →  [Linker Ventrikel / 2D]
+[Lateral Mitral Annulus / Doppler Pulsed]  →  [Mitralklappenring lateral / PW-Doppler]
+Vmax (Antegrade Flow): 1.23 m/s         →  Vmax (antegrad): 1.23 m/s
+```
+
+Mitgeliefert sind Übersetzungen für alle Herzhöhlen, Klappen, Klappenringe, Gefäße und die
+18 Strain-Segmente sowie für 2D, M-Mode, PW-, CW-, Farb- und Gewebedoppler.
+
+**Eigene Bezeichnungen** vergeben Sie unter *GDT-Aufbau bearbeiten → Verfügbare Messwerte*
+in der Spalte **„Eigene Bezeichnung"**. Die Tabelle zeigt daneben den Originaltext aus DICOM
+und die Bezeichnung, die tatsächlich im Befund erscheint. Leer lassen übernimmt die Vorgabe;
+*„Bezeichnungen zurücksetzen"* stellt überall die Vorgaben wieder her.
+
+Alternativ in `settings.json` über `RegionNames` und `ImageModeNames` — die im Katalog
+gepflegten Bezeichnungen haben dabei Vorrang.
+
+> **Wichtig:** Übersetzt wird erst **nach** dem Filtern. Katalog und Filter arbeiten weiterhin
+> mit den DICOM-Originalbezeichnungen — eine geänderte Bezeichnung verändert also nie, welche
+> Messwerte übernommen werden.
+
+---
+
 ## Messwerte auswählen
 
 Das Programm **lernt aus den ausgewerteten SR-Dateien**, welche Messgrößen, Regionen und
