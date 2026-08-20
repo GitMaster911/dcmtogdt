@@ -124,6 +124,26 @@ public sealed class ProcessingSettings
     /// <summary>Dateimuster im Eingangsordner.</summary>
     public string FilePattern { get; set; } = "SR*.dcm";
 
+    /// <summary>
+    /// Ordner, in den die DICOM-Dateien nach der Verarbeitung verschoben werden -
+    /// typischerweise das DICOM-Importverzeichnis des PVS. Leer = keine Weiterleitung.
+    ///
+    /// Damit laesst sich das Tool zwischen den DICOM-Speicherdienst (storescp) und das PVS
+    /// haengen: der Speicherdienst schreibt in den Eingangsordner, wir werten aus und geben
+    /// die Dateien erst danach frei. So kann das PVS die SR-Datei nicht vorher wegraeumen.
+    /// </summary>
+    public string ForwardFolder { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Auch Dateien weiterreichen, die nicht auf <see cref="FilePattern"/> passen.
+    /// Zwingend erforderlich, wenn im selben Ordner auch Bilder und Loops ankommen -
+    /// sonst wuerden diese das PVS nie erreichen.
+    /// </summary>
+    public bool ForwardAllFiles { get; set; } = true;
+
+    /// <summary>Welche Dateien ueberhaupt weitergereicht werden.</summary>
+    public string ForwardPattern { get; set; } = "*.dcm";
+
     /// <summary>Bevorzugte Auswertungs-Engine: "Builtin" (fo-dicom) oder "Dcmtk".</summary>
     public string PreferredEngine { get; set; } = "Builtin";
 

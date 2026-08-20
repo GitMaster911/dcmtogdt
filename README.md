@@ -437,6 +437,66 @@ dcm2gdt update
 
 ---
 
+## Vor das PVS schalten (DICOM-Weiterleitung)
+
+Empfängt das PVS die DICOM-Daten über einen eigenen Speicherdienst (`storescp`), landen SR
+und Bilder in dessen Importverzeichnis. Überwachen PVS und dieses Tool **denselben** Ordner,
+entsteht ein Wettlauf — räumt das PVS die SR-Datei zuerst ab, fehlt der Befund.
+
+Lösung: einen Staging-Ordner vorschalten.
+
+```
+Ultraschall ──C-STORE──> storescp
+                             │
+                             ▼
+                    …\dicom\staging          ← InputFolder
+                             │
+                      DCMtoGDTReports
+                      • SR*.dcm  → GDT erzeugen
+                      • alle Dateien verschieben
+                             │
+                             ▼
+                    …\dicom\import           ← ForwardFolder (PVS)
+```
+
+Beim Speicherdienst ändert sich nur das Ausgabeverzeichnis:
+
+```bat
+storescp.exe 105 -aet STORESCP -od D:\INDAMED\dicom\staging -fe ".dcm" -v +v -d +xa --accept-all
+```
+
+Der Ultraschall bleibt unverändert — gleicher Port, gleiches AE-Title.
+
+### Einstellungen
+
+| Schlüssel | Bedeutung |
+|---|---|
+| `Processing.ForwardFolder` | Zielordner = DICOM-Importverzeichnis des PVS. Leer = keine Weiterleitung |
+| `Processing.ForwardAllFiles` | **Auch Bilder und Loops** weiterreichen, nicht nur `SR*.dcm` (Standard: an) |
+| `Processing.ForwardPattern` | Welche Dateien überhaupt weitergereicht werden (Standard `*.dcm`) |
+
+In der GUI unter *Weiterleitung an das PVS*.
+
+### Verhalten
+
+* **Verschoben, nicht kopiert** — der Staging-Ordner läuft nicht voll.
+* **Atomar:** erst als `.tmp` in den Zielordner kopieren, dann per Umbenennung freigeben.
+  Das PVS sieht nie eine halb geschriebene Datei.
+* Die Quelldatei wird **erst gelöscht, wenn das Ziel vollständig geschrieben ist**. Schlägt
+  das Kopieren fehl, bleibt sie liegen und wird beim nächsten Durchlauf erneut versucht.
+* **Weitergereicht wird immer** — auch bei Dubletten, übersprungenen und fehlerhaften Dateien.
+  Unsere Auswertung darf den Bildfluss zum PVS nie blockieren.
+* Bei aktiver Weiterleitung legt das Archiv nur noch eine **Kopie** an (`MoveProcessedFiles`
+  wird ignoriert), damit die Datei anschließend noch zum PVS wandern kann.
+
+> **Wichtig:** `ForwardAllFiles` eingeschaltet lassen, wenn im Eingangsordner auch Bilder
+> ankommen. Sonst erreichen nur die SR-Dateien das PVS und die Bilder bleiben liegen.
+
+Dazu passend muss im PVS eine **GDT**-Geräteanbindung existieren, deren Importverzeichnis
+der `OutputFolder` dieses Tools ist — die DICOM-Anbindung allein liest keine GDT-Dateien.
+
+---
+
 ## Verarbeitungsablauf
 
 1. `FileSystemWatcher` meldet eine neue Datei im Eingangsordner (zusätzlich zyklischer Rescan).

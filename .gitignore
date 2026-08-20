@@ -9,3 +9,6 @@ samples/*.db-*
 # Echte Patientendaten - gehoeren nicht ins Repository
 samples/*.dcm
 *.dcm
+
+# Fremde Herstellerdokumentation - nicht mitveroeffentlichen
+*.pdf

@@ -73,6 +73,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         BrowseArchiveCommand = new RelayCommand(() => BrowseFolder(v => ArchiveFolder = v, ArchiveFolder));
         BrowseErrorCommand = new RelayCommand(() => BrowseFolder(v => ErrorFolder = v, ErrorFolder));
         BrowseDcmtkCommand = new RelayCommand(() => BrowseFolder(v => DcmtkPath = v, DcmtkPath));
+        BrowseForwardCommand = new RelayCommand(() => BrowseFolder(v => ForwardFolder = v, ForwardFolder));
 
         CheckForUpdatesCommand = new RelayCommand(() => CheckForUpdatesAsync(silent: false));
         InstallUpdateCommand = new RelayCommand(InstallUpdateAsync, () => _pendingUpdate is not null);
@@ -103,6 +104,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand BrowseArchiveCommand { get; }
     public RelayCommand BrowseErrorCommand { get; }
     public RelayCommand BrowseDcmtkCommand { get; }
+    public RelayCommand BrowseForwardCommand { get; }
     public RelayCommand CheckForUpdatesCommand { get; }
     public RelayCommand InstallUpdateCommand { get; }
     public RelayCommand EditTemplateCommand { get; }
@@ -175,6 +177,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _settings.Processing.FilePattern;
         set { _settings.Processing.FilePattern = value; OnPropertyChanged(); }
+    }
+
+    public string ForwardFolder
+    {
+        get => _settings.Processing.ForwardFolder;
+        set { _settings.Processing.ForwardFolder = value; OnPropertyChanged(); }
+    }
+
+    public bool ForwardAllFiles
+    {
+        get => _settings.Processing.ForwardAllFiles;
+        set { _settings.Processing.ForwardAllFiles = value; OnPropertyChanged(); }
     }
 
     public bool FilterEnabled

@@ -31,6 +31,19 @@ public sealed class SrFileProcessor(
             ? Path.Combine(Path.GetTempPath(), "DCMtoGDTReports-catalog.json")
             : settings.MeasurementCatalogPath);
 
+    private readonly DicomForwarder _forwarder = new(
+        settings.Processing.ForwardFolder,
+        logger ?? NullLogger<SrFileProcessor>.Instance);
+
+    /// <summary>Ist eine Weiterleitung an das PVS konfiguriert?</summary>
+    public bool ForwardsToPvs => _forwarder.IsConfigured;
+
+    /// <summary>
+    /// Reicht eine Datei unveraendert an das PVS weiter, ohne sie auszuwerten.
+    /// Wird fuer Bilder und Loops gebraucht, die nicht auf das Verarbeitungsmuster passen.
+    /// </summary>
+    public bool Forward(string sourceFilePath) => _forwarder.Forward(sourceFilePath);
+
     /// <summary>Wertet eine SR-Datei aus, ohne etwas zu schreiben (Button "Testdatei analysieren").</summary>
     public async Task<SrReport> AnalyzeAsync(string sourceFilePath, string? debugXmlPath = null, CancellationToken ct = default)
     {
@@ -133,6 +146,10 @@ public sealed class SrFileProcessor(
         string? sha256 = null;
         string? workingCopy = null;
 
+        // Die Weiterleitung an das PVS darf nicht an unserer Auswertung haengen: auch eine
+        // Dublette oder eine fehlerhafte Datei muss beim PVS ankommen.
+        var forwardWhenDone = true;
+
         try
         {
             sha256 = await FileHasher.ComputeSha256Async(sourceFilePath, ct).ConfigureAwait(false);
@@ -187,6 +204,7 @@ public sealed class SrFileProcessor(
         }
         catch (OperationCanceledException)
         {
+            forwardWhenDone = false;
             throw;
         }
         catch (Exception ex)
@@ -199,6 +217,7 @@ public sealed class SrFileProcessor(
         finally
         {
             if (workingCopy is not null) TryDeleteTemporary(workingCopy);
+            if (forwardWhenDone) _forwarder.Forward(sourceFilePath);
         }
     }
 
@@ -248,7 +267,9 @@ public sealed class SrFileProcessor(
                 $"{Path.GetFileNameWithoutExtension(sourceFilePath)}_{report.Header.AccessionNumber}_{DateTime.Now:yyyyMMddHHmmss}.dcm");
             var target = Path.Combine(_settings.ArchiveFolder, targetName);
 
-            if (_settings.Processing.MoveProcessedFiles)
+            // Bei aktiver Weiterleitung nur kopieren - verschoben wird die Datei anschliessend
+            // an das PVS, sonst waere sie hier schon weg.
+            if (_settings.Processing.MoveProcessedFiles && !_forwarder.IsConfigured)
                 File.Move(sourceFilePath, target, overwrite: true);
             else
                 File.Copy(sourceFilePath, target, overwrite: true);

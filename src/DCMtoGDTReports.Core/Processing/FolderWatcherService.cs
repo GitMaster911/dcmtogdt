@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.IO.Enumeration;
 using DCMtoGDTReports.Core.Configuration;
 using DCMtoGDTReports.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -50,7 +51,7 @@ public sealed class FolderWatcherService : IDisposable
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
-        _watcher = new FileSystemWatcher(_settings.InputFolder, _settings.Processing.FilePattern)
+        _watcher = new FileSystemWatcher(_settings.InputFolder, WatchPattern)
         {
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
             IncludeSubdirectories = false,
@@ -65,7 +66,7 @@ public sealed class FolderWatcherService : IDisposable
         _rescanTask = Task.Run(() => RescanLoopAsync(token), token);
 
         _logger.LogInformation("Ordnerueberwachung gestartet: {Folder} (Muster {Pattern}).",
-            _settings.InputFolder, _settings.Processing.FilePattern);
+            _settings.InputFolder, WatchPattern);
 
         EnqueueExistingFiles();
     }
@@ -98,12 +99,21 @@ public sealed class FolderWatcherService : IDisposable
         _logger.LogInformation("Ordnerueberwachung gestoppt.");
     }
 
+    /// <summary>
+    /// Bei aktiver Weiterleitung muessen auch Bilder und Loops erfasst werden - sonst blieben
+    /// sie im Eingangsordner liegen und wuerden das PVS nie erreichen.
+    /// </summary>
+    private string WatchPattern =>
+        _processor.ForwardsToPvs && _settings.Processing.ForwardAllFiles
+            ? _settings.Processing.ForwardPattern
+            : _settings.Processing.FilePattern;
+
     /// <summary>Nimmt alle bereits im Eingangsordner liegenden Dateien in die Warteschlange auf.</summary>
     public void EnqueueExistingFiles()
     {
         if (!Directory.Exists(_settings.InputFolder)) return;
 
-        foreach (var file in Directory.EnumerateFiles(_settings.InputFolder, _settings.Processing.FilePattern))
+        foreach (var file in Directory.EnumerateFiles(_settings.InputFolder, WatchPattern))
             Enqueue(file);
     }
 
@@ -155,9 +165,20 @@ public sealed class FolderWatcherService : IDisposable
             return;
         }
 
-        var result = await _processor.ProcessAsync(path, ct).ConfigureAwait(false);
-        FileProcessed?.Invoke(this, result);
+        if (MatchesProcessingPattern(path))
+        {
+            var result = await _processor.ProcessAsync(path, ct).ConfigureAwait(false);
+            FileProcessed?.Invoke(this, result);
+            return;
+        }
+
+        // Alles andere (Bilder, Loops) wird unveraendert an das PVS durchgereicht.
+        _processor.Forward(path);
     }
+
+    private bool MatchesProcessingPattern(string path)
+        => FileSystemName.MatchesSimpleExpression(
+            _settings.Processing.FilePattern, Path.GetFileName(path), ignoreCase: true);
 
     /// <summary>Zyklischer Nachscan als Sicherheitsnetz fuer verpasste Watcher-Events.</summary>
     private async Task RescanLoopAsync(CancellationToken ct)

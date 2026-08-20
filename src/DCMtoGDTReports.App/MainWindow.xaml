@@ -140,7 +140,34 @@
                             </Grid>
                             <TextBlock Margin="0,10,0,0" FontSize="11" TextWrapping="Wrap"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       Text="Die Originaldatei bleibt am Ursprungsort. Zur Auswertung wird eine temporaere Kopie erstellt und danach geloescht." />
+                                       Text="Zur Auswertung wird eine temporaere Kopie erstellt und danach geloescht. Ohne Weiterleitung bleibt die Originaldatei am Ursprungsort." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Weiterleitung an das PVS -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Weiterleitung an das PVS" Style="{StaticResource CardHeaderStyle}" />
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Margin="0,0,0,10"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Optional: Das Tool haengt sich zwischen den DICOM-Speicherdienst und das PVS. Der Speicherdienst schreibt in den Eingangsordner, wir werten aus und verschieben die Dateien anschliessend in das DICOM-Importverzeichnis des PVS. So kann das PVS die SR-Datei nicht vorher wegraeumen." />
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Zielordner (PVS)" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Column="1"
+                                         ToolTip="DICOM-Importverzeichnis des PVS. Leer = keine Weiterleitung."
+                                         Text="{Binding ForwardFolder, UpdateSourceTrigger=PropertyChanged}" />
+                                <Button Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseForwardCommand}" />
+                            </Grid>
+
+                            <CheckBox Content="Auch Bilder und Loops weiterreichen" IsChecked="{Binding ForwardAllFiles}"
+                                      ToolTip="Ohne diese Option wuerden nur die SR-Dateien beim PVS ankommen" />
                         </StackPanel>
                     </Border>
 
