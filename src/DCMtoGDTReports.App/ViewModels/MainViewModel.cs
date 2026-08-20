@@ -41,6 +41,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private FolderWatcherService? _watcher;
     private UpdateManifest? _pendingUpdate;
     private SrReport? _lastReport;
+    private readonly System.Windows.Threading.DispatcherTimer _serviceTimer = new()
+    {
+        Interval = TimeSpan.FromSeconds(5)
+    };
 
     public MainViewModel()
     {
@@ -83,6 +87,11 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         RefreshDcmtkStatus();
         RefreshDashboard();
+        RefreshServiceStatus();
+
+        _serviceTimer.Tick += (_, _) => RefreshServiceStatus();
+        _serviceTimer.Start();
+
         Log($"Konfiguration: {_settingsService.SettingsFilePath}");
 
         if (_settings.Update is { Enabled: true, CheckOnStartup: true })
@@ -272,7 +281,37 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public string WatcherButtonText => IsWatching ? "Ordnerueberwachung stoppen" : "Ordnerueberwachung starten";
 
-    public string WatcherStateText => IsWatching ? "Aktiv" : "Gestoppt";
+    /// <summary>Zustand des Windows-Dienstes, unabhaengig von der Ueberwachung in dieser Oberflaeche.</summary>
+    private ServiceState _serviceState = ServiceState.NotInstalled;
+    public ServiceState ServiceState
+    {
+        get => _serviceState;
+        private set
+        {
+            _serviceState = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsServiceRunning));
+            OnPropertyChanged(nameof(ServiceStatusText));
+            OnPropertyChanged(nameof(WatcherStateText));
+            OnPropertyChanged(nameof(IsProcessingActive));
+        }
+    }
+
+    public bool IsServiceRunning => ServiceState == ServiceState.Running;
+
+    public string ServiceStatusText =>
+        $"Dienst {WindowsServiceStatus.Describe(ServiceState)}";
+
+    /// <summary>Laeuft die Verarbeitung ueberhaupt - egal ob als Dienst oder in dieser Oberflaeche?</summary>
+    public bool IsProcessingActive => IsServiceRunning || IsWatching;
+
+    public string WatcherStateText => (IsServiceRunning, IsWatching) switch
+    {
+        (true, true) => "Dienst UND Oberflaeche aktiv",
+        (true, false) => "Dienst aktiv",
+        (false, true) => "Oberflaeche aktiv",
+        _ => "Gestoppt"
+    };
 
     private int _successCount;
     public int SuccessCount
@@ -417,6 +456,18 @@ public sealed class MainViewModel : INotifyPropertyChanged
             }
             else
             {
+                // Dienst und Oberflaeche wuerden denselben Eingangsordner abarbeiten.
+                if (IsServiceRunning)
+                {
+                    var answer = MessageBox.Show(
+                        "Der Windows-Dienst laeuft bereits und verarbeitet den Eingangsordner." + Environment.NewLine + Environment.NewLine +
+                        "Wird die Ueberwachung hier zusaetzlich gestartet, greifen sich beide die Dateien gegenseitig weg." + Environment.NewLine + Environment.NewLine +
+                        "Trotzdem starten?",
+                        "Dienst laeuft bereits", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+                    if (answer != MessageBoxResult.Yes) return;
+                }
+
                 SaveSettings();
                 _watcher = new FolderWatcherService(_settings, _processor, _loggerFactory.CreateLogger<FolderWatcherService>());
                 _watcher.FileProcessed += OnFileProcessed;
@@ -432,6 +483,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsWatching));
         OnPropertyChanged(nameof(WatcherButtonText));
         OnPropertyChanged(nameof(WatcherStateText));
+        OnPropertyChanged(nameof(IsProcessingActive));
         RefreshDashboard();
     }
 
@@ -733,6 +785,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
             : $"Gefunden ({installation.Source}): {installation.Dsr2XmlPath}";
     }
 
+    /// <summary>Fragt den Zustand des Windows-Dienstes ab. Laeuft zyklisch, damit die Anzeige stimmt.</summary>
+    public void RefreshServiceStatus()
+        => ServiceState = WindowsServiceStatus.Query(_settings.Update.ServiceName);
+
     public void RefreshDashboard()
     {
         RefreshCounters();
@@ -845,6 +901,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public void Shutdown()
     {
+        _serviceTimer.Stop();
         _watcher?.Stop();
         _watcher?.Dispose();
         _loggerFactory.Dispose();

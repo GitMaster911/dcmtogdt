@@ -31,7 +31,7 @@
                             <Style TargetType="Ellipse">
                                 <Setter Property="Fill" Value="#FFFFC83D" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsWatching}" Value="True">
+                                    <DataTrigger Binding="{Binding IsProcessingActive}" Value="True">
                                         <Setter Property="Fill" Value="#FF6BE36B" />
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -94,6 +94,25 @@
                                     <TextBlock Text="Im Eingang" Style="{StaticResource MetricCaptionStyle}" />
                                 </StackPanel>
                             </UniformGrid>
+
+                            <Border Margin="0,12,0,0" Padding="10,8" CornerRadius="4" Background="#FFF6F6F6">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="9" Height="9" VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="#FFBDBDBD" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsServiceRunning}" Value="True">
+                                                        <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding ServiceStatusText}" FontSize="12" VerticalAlignment="Center"
+                                               ToolTip="Windows-Dienst - verarbeitet im Hintergrund, auch ohne angemeldeten Benutzer" />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
