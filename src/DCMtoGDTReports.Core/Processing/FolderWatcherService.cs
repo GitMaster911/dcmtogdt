@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.IO.Enumeration;
 using DCMtoGDTReports.Core.Configuration;
+using DCMtoGDTReports.Core.Dicom;
 using DCMtoGDTReports.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -20,6 +21,9 @@ public sealed class FolderWatcherService : IDisposable
     private readonly ILogger _logger;
 
     private readonly ConcurrentDictionary<string, byte> _queued = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Bereits gemeldete Dateien, damit der zyklische Nachscan das Log nicht flutet.</summary>
+    private readonly ConcurrentDictionary<string, byte> _skipped = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _signal = new(0);
     private readonly ConcurrentQueue<string> _queue = new();
 
@@ -67,8 +71,12 @@ public sealed class FolderWatcherService : IDisposable
 
         _logger.LogInformation("Ordnerueberwachung gestartet: {Folder} (Muster {Pattern}).",
             _settings.InputFolder, WatchPattern);
+        _logger.LogInformation("Ausgabe {Output}, Weiterleitung {Forward}.",
+            _settings.OutputFolder,
+            _processor.ForwardsToPvs ? _settings.Processing.ForwardFolder : "nicht konfiguriert");
 
         EnqueueExistingFiles();
+        WarnAboutUnmatchedFiles();
     }
 
     public void Stop()
@@ -165,7 +173,7 @@ public sealed class FolderWatcherService : IDisposable
             return;
         }
 
-        if (MatchesProcessingPattern(path))
+        if (ShouldProcess(path))
         {
             var result = await _processor.ProcessAsync(path, ct).ConfigureAwait(false);
             FileProcessed?.Invoke(this, result);
@@ -173,12 +181,60 @@ public sealed class FolderWatcherService : IDisposable
         }
 
         // Alles andere (Bilder, Loops) wird unveraendert an das PVS durchgereicht.
+        var fileName = Path.GetFileName(path);
+        if (_processor.ForwardsToPvs)
+            _logger.LogInformation("{File} ist kein Structured Report - wird unveraendert weitergereicht.", fileName);
+        else if (_skipped.TryAdd(path, 0))
+            _logger.LogInformation("{File} ist kein Structured Report und bleibt liegen (keine Weiterleitung konfiguriert).", fileName);
+
         _processor.Forward(path);
+    }
+
+    /// <summary>
+    /// Eine Datei wird ausgewertet, wenn ihr Name auf das Muster passt oder ihr Inhalt sie als
+    /// Structured Report ausweist. Der zweite Weg ist entscheidend: welche Dateinamen im
+    /// Eingangsordner ankommen, bestimmt der DICOM-Speicherdienst und nicht das Geraet.
+    /// </summary>
+    private bool ShouldProcess(string path)
+    {
+        if (MatchesProcessingPattern(path)) return true;
+        if (!DicomFileInspector.IsStructuredReport(path)) return false;
+
+        _logger.LogInformation(
+            "{File} passt nicht auf das Muster {Pattern}, ist aber ein Structured Report - wird ausgewertet.",
+            Path.GetFileName(path), _settings.Processing.FilePattern);
+        return true;
     }
 
     private bool MatchesProcessingPattern(string path)
         => FileSystemName.MatchesSimpleExpression(
             _settings.Processing.FilePattern, Path.GetFileName(path), ignoreCase: true);
+
+    /// <summary>
+    /// Meldet Dateien, die im Eingangsordner liegen, aber auf kein ueberwachtes Muster passen.
+    /// Ohne diesen Hinweis wuerde der Dienst schweigend nichts tun, obwohl Daten ankommen.
+    /// </summary>
+    private void WarnAboutUnmatchedFiles()
+    {
+        if (!Directory.Exists(_settings.InputFolder)) return;
+
+        try
+        {
+            var unmatched = Directory.EnumerateFiles(_settings.InputFolder)
+                .Where(f => !FileSystemName.MatchesSimpleExpression(WatchPattern, Path.GetFileName(f), ignoreCase: true))
+                .ToList();
+
+            if (unmatched.Count == 0) return;
+
+            _logger.LogWarning(
+                "{Count} Datei(en) im Eingangsordner passen nicht auf das ueberwachte Muster {Pattern} und werden ignoriert, z. B. {Example}.",
+                unmatched.Count, WatchPattern, Path.GetFileName(unmatched[0]));
+        }
+        catch (IOException ex)
+        {
+            _logger.LogDebug(ex, "Eingangsordner konnte nicht geprueft werden.");
+        }
+    }
 
     /// <summary>Zyklischer Nachscan als Sicherheitsnetz fuer verpasste Watcher-Events.</summary>
     private async Task RescanLoopAsync(CancellationToken ct)

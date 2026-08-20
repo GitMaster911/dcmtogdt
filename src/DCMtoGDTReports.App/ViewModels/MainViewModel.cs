@@ -41,6 +41,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private FolderWatcherService? _watcher;
     private UpdateManifest? _pendingUpdate;
     private SrReport? _lastReport;
+    private ServiceLogReader _serviceLogReader;
     private readonly System.Windows.Threading.DispatcherTimer _serviceTimer = new()
     {
         Interval = TimeSpan.FromSeconds(5)
@@ -60,6 +61,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         _registry = CreateRegistry();
         _processor = CreateProcessor();
+        _serviceLogReader = new ServiceLogReader(_settings.LogFolder);
 
         _logProvider.EntryAdded += (_, entry) => Application.Current?.Dispatcher.Invoke(() => AppendLog(entry));
 
@@ -89,10 +91,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         RefreshDashboard();
         RefreshServiceStatus();
 
-        _serviceTimer.Tick += (_, _) => RefreshServiceStatus();
+        _serviceTimer.Tick += (_, _) =>
+        {
+            RefreshServiceStatus();
+            PumpServiceLog();
+        };
         _serviceTimer.Start();
 
         Log($"Konfiguration: {_settingsService.SettingsFilePath}");
+        Log($"Protokoll des Dienstes: {_settings.LogFolder}");
+        PumpServiceLog();
 
         if (_settings.Update is { Enabled: true, CheckOnStartup: true })
             _ = CheckForUpdatesAsync(silent: true);
@@ -519,6 +527,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         // Registry und Verarbeitung mit den neuen Pfaden neu aufbauen.
         _registry = CreateRegistry();
         _processor = CreateProcessor();
+        _serviceLogReader = new ServiceLogReader(_settings.LogFolder);
 
         Log("Konfiguration gespeichert.");
         StatusText = "Konfiguration gespeichert";
@@ -890,9 +899,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private void Log(string message) =>
         AppendLog(new LogEntry(DateTimeOffset.Now, LogLevel.Information, nameof(MainViewModel), message));
 
-    private void AppendLog(LogEntry entry)
+    /// <summary>
+    /// Holt neue Zeilen aus der Logdatei des Dienstes. Ohne das bliebe das Protokollfenster leer,
+    /// solange die Verarbeitung im Hintergrunddienst und nicht in der Oberflaeche laeuft.
+    /// </summary>
+    private void PumpServiceLog()
     {
-        LogText += entry + Environment.NewLine;
+        foreach (var line in _serviceLogReader.ReadNewLines())
+            AppendLog($"[Dienst] {line}");
+    }
+
+    private void AppendLog(LogEntry entry) => AppendLog(entry.ToString());
+
+    private void AppendLog(string line)
+    {
+        LogText += line + Environment.NewLine;
 
         // Loganzeige begrenzen, damit die GUI bei Dauerbetrieb nicht vollaeuft.
         if (LogText.Length > 200_000)

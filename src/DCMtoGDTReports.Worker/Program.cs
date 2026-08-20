@@ -23,6 +23,14 @@ Log.Logger = new LoggerConfiguration()
         retainedFileCountLimit: 31)
     .CreateLogger();
 
+// Als Erstes in die Logdatei, damit bei Fehlersuche sofort ersichtlich ist,
+// welche Konfiguration der Dienst tatsaechlich verwendet.
+Log.Information("Konfiguration: {Path}", settingsService.SettingsFilePath);
+Log.Information("Eingang {Input}, Ausgabe {Output}, Weiterleitung {Forward}, Muster {Pattern}",
+    settings.InputFolder, settings.OutputFolder,
+    string.IsNullOrWhiteSpace(settings.Processing.ForwardFolder) ? "nicht konfiguriert" : settings.Processing.ForwardFolder,
+    settings.Processing.FilePattern);
+
 try
 {
     var builder = Host.CreateApplicationBuilder(args);
