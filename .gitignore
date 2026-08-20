@@ -1,0 +1,11 @@
+﻿bin/
+obj/
+publish/
+*.user
+samples/_*
+samples/*.db
+samples/*.db-*
+
+# Echte Patientendaten - gehoeren nicht ins Repository
+samples/*.dcm
+*.dcm

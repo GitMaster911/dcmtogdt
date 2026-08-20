@@ -1,0 +1,399 @@
+<Window x:Class="DCMtoGDTReports.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:DCMtoGDTReports.App.ViewModels"
+        Title="DCMtoGDTReports - DICOM SR nach GDT" Height="880" Width="1320"
+        MinHeight="700" MinWidth="1100"
+        Background="{StaticResource WindowBackgroundBrush}"
+        FontFamily="Segoe UI" TextOptions.TextFormattingMode="Display">
+
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <DockPanel>
+
+        <!-- Kopfzeile -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource AccentBrush}" Padding="20,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="DCMtoGDTReports" FontSize="19" FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock Text="DICOM Structured Report (GE Vivid T8) nach GDT 6310 fuer MEDICAL OFFICE"
+                               FontSize="12" Foreground="#CCFFFFFF" Margin="0,2,0,0" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="#FFFFC83D" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWatching}" Value="True">
+                                        <Setter Property="Fill" Value="#FF6BE36B" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding WatcherStateText}" Foreground="White" FontSize="13"
+                               FontWeight="SemiBold" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Statusleiste -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource CardBackgroundBrush}"
+                BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="0,1,0,0" Padding="16,7">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" />
+                <TextBlock Grid.Column="1" Text="{Binding SettingsFilePath}" FontSize="11"
+                           Foreground="{StaticResource TextSecondaryBrush}" ToolTip="{Binding SettingsFilePath}" />
+            </Grid>
+        </Border>
+
+        <Grid Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="1*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Linke Spalte: Dashboard, Ordner, DCMTK, Aktionen -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,8,0">
+                <StackPanel>
+
+                    <!-- Dashboard -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Dashboard" Style="{StaticResource CardHeaderStyle}" />
+                            <UniformGrid Rows="1" Columns="4">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SuccessCount}" Style="{StaticResource MetricValueStyle}"
+                                               Foreground="{StaticResource SuccessBrush}" />
+                                    <TextBlock Text="Verarbeitet" Style="{StaticResource MetricCaptionStyle}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding SkippedCount}" Style="{StaticResource MetricValueStyle}"
+                                               Foreground="{StaticResource WarningBrush}" />
+                                    <TextBlock Text="Uebersprungen" Style="{StaticResource MetricCaptionStyle}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding FailedCount}" Style="{StaticResource MetricValueStyle}"
+                                               Foreground="{StaticResource ErrorBrush}" />
+                                    <TextBlock Text="Fehler" Style="{StaticResource MetricCaptionStyle}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding PendingCount}" Style="{StaticResource MetricValueStyle}" />
+                                    <TextBlock Text="Im Eingang" Style="{StaticResource MetricCaptionStyle}" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Ordner -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Ordner" Style="{StaticResource CardHeaderStyle}" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Eingang (SR*.dcm)" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding InputFolder, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                <Button Grid.Row="0" Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseInputCommand}" Margin="6,0,0,8" />
+
+                                <TextBlock Grid.Row="1" Text="Ausgabe (GDT)" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding OutputFolder, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                <Button Grid.Row="1" Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseOutputCommand}" Margin="6,0,0,8" />
+
+                                <TextBlock Grid.Row="2" Text="Archiv" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ArchiveFolder, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                <Button Grid.Row="2" Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseArchiveCommand}" Margin="6,0,0,8" />
+
+                                <TextBlock Grid.Row="3" Text="Fehler" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ErrorFolder, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,8" />
+                                <Button Grid.Row="3" Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseErrorCommand}" Margin="6,0,0,8" />
+
+                                <TextBlock Grid.Row="4" Text="Dateimuster" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding FilePattern, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+                            <TextBlock Margin="0,10,0,0" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Die Originaldatei bleibt am Ursprungsort. Zur Auswertung wird eine temporaere Kopie erstellt und danach geloescht." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GDT-Einstellungen -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="GDT-Einstellungen" Style="{StaticResource CardHeaderStyle}" />
+                            <UniformGrid Columns="2" Rows="2">
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="Empfaengerkennung (8315)" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBox Text="{Binding ReceiverId, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="8,0,0,8">
+                                    <TextBlock Text="Senderkennung (8316)" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBox Text="{Binding SenderId, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="Geraetekennung (8402)" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBox Text="{Binding TestType, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="8,0,0,0">
+                                    <TextBlock Text="Test-Ident (8410)" Style="{StaticResource FieldLabelStyle}" />
+                                    <TextBox Text="{Binding TestId, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Messwertfilter -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Messwertfilter" Style="{StaticResource CardHeaderStyle}" />
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Margin="0,0,0,10"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Ohne Filter werden alle gefundenen Messwerte uebertragen (beim Vivid T8 mehrere hundert). Muster erlauben * und ?, mehrere Eintraege mit Komma trennen." />
+
+                            <CheckBox Content="Filter aktivieren" Margin="0,0,0,6"
+                                      IsChecked="{Binding FilterEnabled}" />
+                            <CheckBox Content="Nur Messwerte mit hinterlegter Kurzbezeichnung" Margin="0,0,0,6"
+                                      IsEnabled="{Binding FilterEnabled}" IsChecked="{Binding FilterOnlyMapped}" />
+                            <CheckBox Content="Nur vom Geraet gewaehlte Werte (Selection Status)" Margin="0,0,0,10"
+                                      IsEnabled="{Binding FilterEnabled}" IsChecked="{Binding FilterOnlySelected}" />
+
+                            <Grid IsEnabled="{Binding FilterEnabled}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="Wiederholungswerte" Style="{StaticResource FieldLabelStyle}" />
+                                <ComboBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,8" Padding="8,5"
+                                          ItemsSource="{Binding RepeatedValueModes}"
+                                          SelectedItem="{Binding FilterRepeatedValues}" />
+
+                                <TextBlock Grid.Row="1" Text="Nur diese Messwerte" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Margin="0,0,0,8"
+                                         ToolTip="Leer = alle. Beispiel: LVIDd, IVSd, EF, LN:29436-3"
+                                         Text="{Binding FilterIncludeConcepts, UpdateSourceTrigger=LostFocus}" />
+
+                                <TextBlock Grid.Row="2" Text="Messwerte ausschliessen" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"
+                                         ToolTip="Beispiel: Peak Longitudinal Strain"
+                                         Text="{Binding FilterExcludeConcepts, UpdateSourceTrigger=LostFocus}" />
+
+                                <TextBlock Grid.Row="3" Text="Regionen ausschliessen" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Margin="0,0,0,8"
+                                         ToolTip="Beispiel: *segment  (entfernt die 18 Strain-Segmente)"
+                                         Text="{Binding FilterExcludeFindingSites, UpdateSourceTrigger=LostFocus}" />
+
+                                <TextBlock Grid.Row="4" Text="Max. Messwerte (0 = alle)" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="4" Grid.Column="1"
+                                         Text="{Binding FilterMaxMeasurements, UpdateSourceTrigger=LostFocus}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- DCMTK -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="DICOM Toolkit" Style="{StaticResource CardHeaderStyle}" />
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Margin="0,0,0,8"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Das eingebaute Toolkit (fo-dicom) ist immer verfuegbar. DCMTK (dsr2xml.exe / dcmdump.exe) ist optional." />
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="DCMTK-Pfad" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Column="1" Text="{Binding DcmtkPath, UpdateSourceTrigger=PropertyChanged}" />
+                                <Button Grid.Column="2" Content="..." Style="{StaticResource BrowseButtonStyle}"
+                                        Command="{Binding BrowseDcmtkCommand}" />
+                            </Grid>
+                            <TextBlock Text="{Binding DcmtkStatus}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding DcmtkAvailable}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <Button Content="DCMTK herunterladen / einrichten" HorizontalAlignment="Left"
+                                    Command="{Binding SetupDcmtkCommand}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Aktualisierung -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Aktualisierung" Style="{StaticResource CardHeaderStyle}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Text="Installierte Version:" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBlock Text="{Binding InstalledVersion}" FontWeight="SemiBold" FontSize="12"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <CheckBox Content="Automatisch nach Updates suchen" Margin="0,0,0,8"
+                                      IsChecked="{Binding UpdateEnabled}" />
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Text="Update-Quelle" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Column="1" Margin="0,0,0,8"
+                                         ToolTip="HTTPS-Adresse oder UNC-Pfad zur update.json"
+                                         Text="{Binding UpdateManifestUrl, UpdateSourceTrigger=PropertyChanged}" />
+
+                                <TextBlock Grid.Row="1" Text="Dienstname (optional)" Style="{StaticResource FieldLabelStyle}" />
+                                <TextBox Grid.Row="1" Grid.Column="1"
+                                         ToolTip="Wird fuer das Update angehalten und danach neu gestartet"
+                                         Text="{Binding UpdateServiceName, UpdateSourceTrigger=PropertyChanged}" />
+                            </Grid>
+
+                            <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap" FontSize="11" Margin="0,0,0,10">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding UpdateAvailable}" Value="True">
+                                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                <Setter Property="FontWeight" Value="SemiBold" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <WrapPanel>
+                                <Button Content="Nach Updates suchen" Margin="0,0,8,0"
+                                        Command="{Binding CheckForUpdatesCommand}" />
+                                <Button Content="Update installieren" Style="{StaticResource AccentButtonStyle}"
+                                        Command="{Binding InstallUpdateCommand}" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Aktionen -->
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Aktionen" Style="{StaticResource CardHeaderStyle}" />
+                            <WrapPanel>
+                                <Button Content="Testdatei analysieren" Margin="0,0,8,8"
+                                        Command="{Binding AnalyzeTestFileCommand}" />
+                                <Button Content="GDT Testdatei erzeugen" Margin="0,0,8,8"
+                                        Command="{Binding CreateTestGdtCommand}" />
+                                <Button Content="{Binding WatcherButtonText}" Margin="0,0,8,8"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        Command="{Binding ToggleWatcherCommand}" />
+                                <Button Content="Konfiguration speichern" Margin="0,0,8,8"
+                                        Command="{Binding SaveSettingsCommand}" />
+                                <Button Content="Ausgabeordner oeffnen" Margin="0,0,8,8"
+                                        Command="{Binding OpenOutputFolderCommand}" />
+                                <Button Content="Aktualisieren" Margin="0,0,8,8"
+                                        Command="{Binding RefreshCommand}" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Center" Background="Transparent" />
+
+            <!-- Rechte Spalte: Dateien, Analyse, Log -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="1.1*" />
+                    <RowDefinition Height="1.2*" />
+                    <RowDefinition Height="1*" />
+                </Grid.RowDefinitions>
+
+                <Border Style="{StaticResource CardStyle}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Zuletzt verarbeitete Dateien"
+                                   Style="{StaticResource CardHeaderStyle}" />
+                        <DataGrid ItemsSource="{Binding RecentFiles}">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Zeitpunkt" Binding="{Binding Time}" Width="130" />
+                                <DataGridTextColumn Header="Datei" Binding="{Binding FileName}" Width="*" />
+                                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                                <DataGridTextColumn Header="GDT-Datei" Binding="{Binding GdtFile}" Width="1.2*" />
+                                <DataGridTextColumn Header="Hinweis" Binding="{Binding Info}" Width="1.2*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="Analyse / GDT-Vorschau"
+                                   Style="{StaticResource CardHeaderStyle}" />
+                        <TextBox Text="{Binding AnalysisText, Mode=OneWay}" IsReadOnly="True"
+                                 FontFamily="Consolas" FontSize="11.5"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                 TextWrapping="NoWrap" VerticalContentAlignment="Top" />
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0">
+                    <DockPanel>
+                        <Grid DockPanel.Dock="Top">
+                            <TextBlock Text="Log" Style="{StaticResource CardHeaderStyle}" />
+                            <Button Content="Leeren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                    Padding="10,3" FontSize="11" Command="{Binding ClearLogCommand}" />
+                        </Grid>
+                        <TextBox x:Name="LogBox" Text="{Binding LogText, Mode=OneWay}" IsReadOnly="True"
+                                 Background="{StaticResource LogBackgroundBrush}"
+                                 Foreground="{StaticResource LogForegroundBrush}"
+                                 FontFamily="Consolas" FontSize="11.5" BorderThickness="0"
+                                 VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                                 VerticalContentAlignment="Top" />
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

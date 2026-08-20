@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DCMtoGDTReports.App/DCMtoGDTReports.App.csproj" />
+    <Project Path="src/DCMtoGDTReports.Cli/DCMtoGDTReports.Cli.csproj" />
+    <Project Path="src/DCMtoGDTReports.Core/DCMtoGDTReports.Core.csproj" />
+    <Project Path="src/DCMtoGDTReports.Tools/DCMtoGDTReports.Tools.csproj" />
+    <Project Path="src/DCMtoGDTReports.Worker/DCMtoGDTReports.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DCMtoGDTReports.Tests/DCMtoGDTReports.Tests.csproj" />
+  </Folder>
+</Solution>
