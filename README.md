@@ -66,11 +66,27 @@ DCMTK ist rein **optional** und kann als alternative Engine verwendet werden:
 
 ## Installation
 
+### Fertiges Paket herunterladen
+
+Das aktuelle Release enthält alles Nötige — **self-contained für Windows x64, es muss keine
+.NET-Runtime installiert werden**:
+
+**[Download: DCMtoGDTReports-1.1.0-win-x64.zip](https://github.com/GitMaster911/dcmtogdt/releases/latest)**
+
+```powershell
+# oder direkt auf dem Server
+Invoke-WebRequest -Uri "https://github.com/GitMaster911/dcmtogdt/releases/download/v1.1.0/DCMtoGDTReports-1.1.0-win-x64.zip" `
+    -OutFile "$env:TEMP\DCMtoGDT.zip"
+Expand-Archive "$env:TEMP\DCMtoGDT.zip" -DestinationPath C:\Temp\DCMtoGDT
+```
+
+Danach weiter bei [Installieren](#installieren).
+
 ### Voraussetzungen
 
 * Windows Server 2019+ oder Windows 10/11
-* [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) (für die GUI)
-  bzw. .NET 8 Runtime (für den Dienst)
+* Nur beim Selbstbauen: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+  (das Release-Paket bringt die Runtime bereits mit)
 
 ### Bauen
 
