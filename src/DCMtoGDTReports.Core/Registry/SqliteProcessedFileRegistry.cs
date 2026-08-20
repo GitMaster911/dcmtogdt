@@ -159,6 +159,40 @@ public sealed class SqliteProcessedFileRegistry : IProcessedFileRegistry
         }
     }
 
+    public int Forget(string? sha256, string? sopInstanceUid)
+    {
+        var hasHash = !string.IsNullOrWhiteSpace(sha256);
+        var hasUid = !string.IsNullOrWhiteSpace(sopInstanceUid);
+        if (!hasHash && !hasUid) return 0;
+
+        lock (_gate)
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                DELETE FROM ProcessedFiles
+                WHERE ($hasHash = 1 AND Sha256 = $sha256)
+                   OR ($hasUid  = 1 AND SopInstanceUid = $sop);
+                """;
+            command.Parameters.AddWithValue("$hasHash", hasHash ? 1 : 0);
+            command.Parameters.AddWithValue("$hasUid", hasUid ? 1 : 0);
+            command.Parameters.AddWithValue("$sha256", sha256 ?? string.Empty);
+            command.Parameters.AddWithValue("$sop", sopInstanceUid ?? string.Empty);
+            return command.ExecuteNonQuery();
+        }
+    }
+
+    public int ForgetAll()
+    {
+        lock (_gate)
+        {
+            using var connection = OpenConnection();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM ProcessedFiles;";
+            return command.ExecuteNonQuery();
+        }
+    }
+
     private const string ColumnList =
         "Id, FilePath, FileName, FileSize, LastWriteTimeUtc, Sha256, SopInstanceUid, StudyInstanceUid, " +
         "AccessionNumber, PatientId, CreatedGdtFile, ProcessedAtUtc, Status, ErrorMessage";

@@ -50,6 +50,35 @@ public class DuplicateRegistryTests : IDisposable
     }
 
     [Fact]
+    public void Forget_GibtDieDateiWiederFrei()
+    {
+        _registry.Add(CreateEntry("HASH1", "1.2.3", ProcessedFileEntry.StatusSuccess));
+
+        Assert.Equal(1, _registry.Forget("HASH1", null));
+        Assert.Null(_registry.FindSuccessful("HASH1", "1.2.3"));
+    }
+
+    [Fact]
+    public void Forget_OhneMerkmale_AendertNichts()
+    {
+        _registry.Add(CreateEntry("HASH1", "1.2.3", ProcessedFileEntry.StatusSuccess));
+
+        Assert.Equal(0, _registry.Forget(null, null));
+        Assert.NotNull(_registry.FindSuccessful("HASH1", null));
+    }
+
+    [Fact]
+    public void ForgetAll_LeertDieRegistry()
+    {
+        _registry.Add(CreateEntry("HASH1", "1.2.3", ProcessedFileEntry.StatusSuccess));
+        _registry.Add(CreateEntry("HASH2", "4.5.6", ProcessedFileEntry.StatusSuccess));
+
+        Assert.Equal(2, _registry.ForgetAll());
+        Assert.Null(_registry.FindSuccessful("HASH1", null));
+        Assert.Null(_registry.FindSuccessful("HASH2", null));
+    }
+
+    [Fact]
     public void FindSuccessful_UebersprungeneDateienWerdenNichtErneutVerarbeitet()
     {
         _registry.Add(CreateEntry("HASH3", "8.8.8", ProcessedFileEntry.StatusSkipped));

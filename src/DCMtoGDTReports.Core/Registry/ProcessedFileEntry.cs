@@ -46,4 +46,13 @@ public interface IProcessedFileRegistry
     IReadOnlyList<ProcessedFileEntry> GetRecent(int count);
 
     int CountByStatus(string status);
+
+    /// <summary>
+    /// Loescht Eintraege zu Hash bzw. SOPInstanceUID, damit dieselbe Datei erneut verarbeitet
+    /// werden kann. Wird zum Wiederholen von Testlaeufen gebraucht. Liefert die Anzahl.
+    /// </summary>
+    int Forget(string? sha256, string? sopInstanceUid);
+
+    /// <summary>Leert die Registry vollstaendig. Liefert die Anzahl der geloeschten Eintraege.</summary>
+    int ForgetAll();
 }

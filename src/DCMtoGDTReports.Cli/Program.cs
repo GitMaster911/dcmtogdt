@@ -50,6 +50,7 @@ internal static class Program
             "gdt" => await GenerateGdtAsync(settings, settingsService, options).ConfigureAwait(false),
             "process" => await ProcessAsync(settings, options).ConfigureAwait(false),
             "watch" => await WatchAsync(settings).ConfigureAwait(false),
+            "forget" => await ForgetAsync(settings, options).ConfigureAwait(false),
             "dcmtk" => ShowDcmtkStatus(settings),
             "update" => await CheckUpdateAsync(settings).ConfigureAwait(false),
             "pack" => CreateUpdatePackage(options),
@@ -142,6 +143,40 @@ internal static class Program
         return 0;
     }
 
+    /// <summary>
+    /// Entfernt Eintraege aus der Dubletten-Registry, damit dieselbe Datei erneut verarbeitet
+    /// wird. Ohne das laesst sich eine Testdatei nur ein einziges Mal durchspielen.
+    /// </summary>
+    private static async Task<int> ForgetAsync(AppSettings settings, Dictionary<string, string> options)
+    {
+        var registry = CreateRegistry(settings);
+
+        if (options.ContainsKey("all"))
+        {
+            var cleared = registry.ForgetAll();
+            Console.WriteLine($"{cleared} Eintrag/Eintraege entfernt. Die Registry ist jetzt leer.");
+            return 0;
+        }
+
+        if (!options.TryGetValue("file", out var file))
+        {
+            Console.Error.WriteLine("Bitte --file <pfad> oder --all angeben.");
+            return 1;
+        }
+
+        if (!File.Exists(file))
+            throw new FileNotFoundException("Datei nicht gefunden.", file);
+
+        var sha256 = await FileHasher.ComputeSha256Async(file).ConfigureAwait(false);
+        var sopInstanceUid = DicomFileInspector.ReadSopInstanceUid(file);
+
+        var removed = registry.Forget(sha256, sopInstanceUid);
+        Console.WriteLine(removed > 0
+            ? $"{removed} Eintrag/Eintraege zu {Path.GetFileName(file)} entfernt - die Datei wird wieder verarbeitet."
+            : $"Kein Eintrag zu {Path.GetFileName(file)} gefunden.");
+        return 0;
+    }
+
     private static int ShowDcmtkStatus(AppSettings settings)
     {
         var installation = DcmtkLocator.Locate(settings.DcmtkPath);
@@ -188,6 +223,7 @@ internal static class Program
               gdt       SR-Datei auswerten und GDT-Testdatei erzeugen
               process   Alle Dateien im Eingangsordner verarbeiten
               watch     Ordnerueberwachung starten
+              forget    Datei aus der Dubletten-Registry entfernen (erneut verarbeiten)
               dcmtk     DCMTK-Status anzeigen
               update    Auf neue Programmversion pruefen
               pack      Updatepaket (ZIP + update.json) aus einem Publish-Ordner erzeugen
@@ -201,6 +237,7 @@ internal static class Program
               --input <ordner>   Eingangsordner bzw. Publish-Ordner fuer "pack"
               --version <x.y.z>  Versionsnummer fuer "pack"
               --notes <text>     Aenderungshinweise fuer "pack"
+              --all              Bei "forget": die gesamte Registry leeren
             """);
         return 0;
     }

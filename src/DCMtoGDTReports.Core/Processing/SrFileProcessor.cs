@@ -77,7 +77,8 @@ public sealed class SrFileProcessor(
             CreateMapper(),
             catalog);
 
-        report.ApplyFilteredMeasurements(filter.Apply(report.Measurements));
+        report.ApplyFilteredMeasurements(filter.Apply(report.Measurements, out var statistics));
+        report.FilterSummary = statistics.Describe();
         CreateMapper(catalog).ApplyGermanNames(report.Measurements);
     }
 
@@ -187,6 +188,7 @@ public sealed class SrFileProcessor(
                     ? "Der konfigurierte Messwertfilter hat alle Messwerte entfernt."
                     : "Keine numerischen Messwerte im Structured Report.";
                 _logger.LogWarning("Datei {File} liefert keine uebertragbaren Messwerte: {Reason}", fileName, reason);
+                LogFilterSummary(report);
                 Register(sourceFilePath, sha256, report, string.Empty, ProcessedFileEntry.StatusSkipped, reason);
                 return ProcessingResult.Skip(sourceFilePath, reason, sha256);
             }
@@ -196,6 +198,7 @@ public sealed class SrFileProcessor(
                 "GDT-Datei {Gdt} erzeugt: {Count} Messwerte (von {Raw} SR-Knoten, {Filtered} durch Filter entfallen), Engine {Engine}.",
                 Path.GetFileName(gdtPath), report.Measurements.Count, report.RawMeasurementCount,
                 report.FilteredOutCount, report.Engine);
+            LogFilterSummary(report);
 
             ArchiveSource(sourceFilePath, report);
             Register(sourceFilePath, sha256, report, gdtPath, ProcessedFileEntry.StatusSuccess, string.Empty);
@@ -221,9 +224,23 @@ public sealed class SrFileProcessor(
         }
     }
 
-    /// <summary>Erstellt eine temporaere Arbeitskopie, damit die Originaldatei unberuehrt bleibt.</summary>
-    private static string CreateTemporaryCopy(string sourceFilePath)
+    /// <summary>
+    /// Schluesselt auf, welche Filterstufe wie viele Messwerte entfernt hat. Bleibt fast nichts
+    /// uebrig, ist das im Betrieb der haeufigste Grund fuer einen unerwartet leeren Befund.
+    /// </summary>
+    private void LogFilterSummary(SrReport report)
     {
+        if (string.IsNullOrEmpty(report.FilterSummary)) return;
+
+        if (report.Measurements.Count <= 3)
+            _logger.LogWarning("Nur {Count} Messwert(e) uebrig. Entfallen sind - {Summary}",
+                report.Measurements.Count, report.FilterSummary);
+        else
+            _logger.LogInformation("Filter: {Summary}", report.FilterSummary);
+    }
+
+    /// <summary>Erstellt eine temporaere Arbeitskopie, damit die Originaldatei unberuehrt bleibt.</summary>
+    private static string CreateTemporaryCopy(string sourceFilePath)    {
         var tempDirectory = Path.Combine(Path.GetTempPath(), "DCMtoGDTReports");
         Directory.CreateDirectory(tempDirectory);
 

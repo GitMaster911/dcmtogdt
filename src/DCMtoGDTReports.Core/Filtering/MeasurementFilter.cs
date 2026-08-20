@@ -28,11 +28,26 @@ public sealed class MeasurementFilter(
     private readonly MeasurementCatalog? _catalog = catalog;
 
     public IReadOnlyList<MeasurementResult> Apply(IReadOnlyList<MeasurementResult> measurements)
+        => Apply(measurements, out _);
+
+    /// <summary>
+    /// Wie <see cref="Apply(IReadOnlyList{MeasurementResult})"/>, liefert zusaetzlich die
+    /// Aufschluesselung, welche Filterstufe wie viele Messwerte entfernt hat. Ohne diese Angabe
+    /// ist im Betrieb nicht nachvollziehbar, warum am Ende nur wenige Werte im Befund stehen.
+    /// </summary>
+    public IReadOnlyList<MeasurementResult> Apply(
+        IReadOnlyList<MeasurementResult> measurements, out FilterStatistics statistics)
     {
         ArgumentNullException.ThrowIfNull(measurements);
 
+        statistics = new FilterStatistics { Input = measurements.Count };
+
         var catalogActive = _catalog is { Enabled: true } && !_catalog.IsEmpty;
-        if (!_settings.Enabled && !catalogActive) return measurements;
+        if (!_settings.Enabled && !catalogActive)
+        {
+            statistics.Output = measurements.Count;
+            return measurements;
+        }
 
         var includeConcepts = Compile(_settings.IncludeConcepts);
         var excludeConcepts = Compile(_settings.ExcludeConcepts);
@@ -41,34 +56,65 @@ public sealed class MeasurementFilter(
         var includeModes = Compile(_settings.IncludeImageModes);
         var excludeModes = Compile(_settings.ExcludeImageModes);
 
-        var selected = measurements.Where(m =>
-            (!catalogActive || PassesCatalog(m))
-            && (!_settings.Enabled || (
-                (!_settings.OnlySelectedValues || !string.IsNullOrEmpty(m.SelectionStatus))
-                && (!_settings.OnlyMappedMeasurements || _mapper.HasMapping(m))
-                && Passes(includeConcepts, excludeConcepts, m.SourceCode, m.Name, m.ShortName)
-                && Passes(includeSites, excludeSites, m.FindingSite)
-                && Passes(includeModes, excludeModes, m.ImageMode))));
+        var selected = new List<MeasurementResult>();
+        foreach (var m in measurements)
+        {
+            var reason = FindRejectionReason(m, catalogActive,
+                includeConcepts, excludeConcepts, includeSites, excludeSites, includeModes, excludeModes);
 
-        var result = CondenseRepeatedValues(selected.ToList());
+            if (reason is null) selected.Add(m);
+            else statistics.Count(reason.Value);
+        }
+
+        var result = CondenseRepeatedValues(selected);
+        statistics.CondensedAway = selected.Count - result.Count;
 
         if (_settings.MaxMeasurements > 0 && result.Count > _settings.MaxMeasurements)
+        {
+            statistics.RemovedByLimit = result.Count - _settings.MaxMeasurements;
             result = result.Take(_settings.MaxMeasurements).ToList();
+        }
 
+        statistics.Output = result.Count;
         return result;
     }
 
-    /// <summary>
-    /// Prueft die Ankreuzauswahl des Katalogs. Eintraege, die noch nicht gelernt wurden,
-    /// werden je nach Einstellung uebernommen - damit gehen neue Messgroessen nicht verloren.
-    /// </summary>
-    private bool PassesCatalog(MeasurementResult measurement)
+    /// <summary>Liefert die erste Stufe, an der ein Messwert scheitert - oder null, wenn er bleibt.</summary>
+    private FilterReason? FindRejectionReason(
+        MeasurementResult m, bool catalogActive,
+        IReadOnlyList<Regex> includeConcepts, IReadOnlyList<Regex> excludeConcepts,
+        IReadOnlyList<Regex> includeSites, IReadOnlyList<Regex> excludeSites,
+        IReadOnlyList<Regex> includeModes, IReadOnlyList<Regex> excludeModes)
+    {
+        if (catalogActive)
+        {
+            var catalogReason = FindCatalogRejection(m);
+            if (catalogReason is not null) return catalogReason;
+        }
+
+        if (!_settings.Enabled) return null;
+
+        if (_settings.OnlySelectedValues && string.IsNullOrEmpty(m.SelectionStatus)) return FilterReason.OnlySelected;
+        if (_settings.OnlyMappedMeasurements && !_mapper.HasMapping(m)) return FilterReason.OnlyMapped;
+        if (!Passes(includeConcepts, excludeConcepts, m.SourceCode, m.Name, m.ShortName)) return FilterReason.ConceptPattern;
+        if (!Passes(includeSites, excludeSites, m.FindingSite)) return FilterReason.SitePattern;
+        if (!Passes(includeModes, excludeModes, m.ImageMode)) return FilterReason.ModePattern;
+
+        return null;
+    }
+
+    private FilterReason? FindCatalogRejection(MeasurementResult measurement)
     {
         var catalog = _catalog!;
 
-        return IsAllowed(catalog.Measurements, MeasurementCatalogService.MeasurementKey(measurement))
-            && IsAllowed(catalog.Regions, measurement.FindingSite)
-            && IsAllowed(catalog.ImageModes, measurement.ImageMode);
+        if (!IsAllowed(catalog.Measurements, MeasurementCatalogService.MeasurementKey(measurement)))
+            return FilterReason.CatalogMeasurement;
+        if (!IsAllowed(catalog.Regions, measurement.FindingSite))
+            return FilterReason.CatalogRegion;
+        if (!IsAllowed(catalog.ImageModes, measurement.ImageMode))
+            return FilterReason.CatalogImageMode;
+
+        return null;
 
         bool IsAllowed(List<CatalogEntry> entries, string key)
         {
@@ -78,6 +124,12 @@ public sealed class MeasurementFilter(
             return entry is null ? catalog.IncludeUnknown : entry.Selected;
         }
     }
+
+    /// <summary>
+    /// Prueft die Ankreuzauswahl des Katalogs. Eintraege, die noch nicht gelernt wurden,
+    /// werden je nach Einstellung uebernommen - damit gehen neue Messgroessen nicht verloren.
+    /// </summary>
+    private bool PassesCatalog(MeasurementResult measurement) => FindCatalogRejection(measurement) is null;
 
     /// <summary>
     /// Ausschluss hat Vorrang. Eine leere Einschlussliste bedeutet "alles zulassen".

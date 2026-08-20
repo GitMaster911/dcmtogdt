@@ -67,6 +67,9 @@ public sealed class SrReport
     /// <summary>Anzahl der vom Messwertfilter entfernten bzw. zusammengefassten Werte.</summary>
     public int FilteredOutCount { get; private set; }
 
+    /// <summary>Klartext, welche Filterstufe wie viele Messwerte entfernt hat.</summary>
+    public string FilterSummary { get; set; } = string.Empty;
+
     /// <summary>
     /// Alle Messwerte vor der Filterung. Wird fuer die Vorschau im GDT-Editor gebraucht,
     /// damit dort sichtbar ist, was die Auswahl tatsaechlich bewirkt.

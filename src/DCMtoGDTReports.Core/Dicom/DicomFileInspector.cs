@@ -38,4 +38,18 @@ public static class DicomFileInspector
             return false;
         }
     }
+
+    /// <summary>Liest die SOPInstanceUID, ohne die Datei vollstaendig auszuwerten.</summary>
+    public static string ReadSopInstanceUid(string filePath)
+    {
+        try
+        {
+            return DicomFile.Open(filePath, FileReadOption.SkipLargeTags)
+                .Dataset.GetSingleValueOrDefault(DicomTag.SOPInstanceUID, string.Empty);
+        }
+        catch (Exception ex) when (ex is DicomFileException or IOException or UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
+    }
 }
