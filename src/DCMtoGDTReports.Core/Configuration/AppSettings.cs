@@ -57,8 +57,13 @@ public sealed class GdtSettings
     /// <summary>Feld 9206 - Zeichensatz. 1 = 7-Bit, 2 = IBM CP437, 3 = ISO8859-1/ANSI.</summary>
     public string Charset { get; set; } = "3";
 
-    /// <summary>Feld 8402 - Geraete-/Verfahrenskennung.</summary>
-    public string TestType { get; set; } = "SONO-ECHO";
+    /// <summary>
+    /// Feld 8402 - Geraete-/Verfahrenskennung. Daran erkennt das PVS, aus welchem Verfahren
+    /// die Daten stammen. Uebliche Kennungen: EKG01, EKG02, ERGO01, LUFU01, SPIRO01, LZEKG01,
+    /// LZRR01, SONO01, ECHO01. Der Wert muss zu dem passen, was in MEDICAL OFFICE bzw. im
+    /// BITS GDT Mover fuer dieses Geraet hinterlegt ist.
+    /// </summary>
+    public string TestType { get; set; } = "ECHO01";
 
     /// <summary>Feld 8410 - Test-Ident.</summary>
     public string TestId { get; set; } = "ECHO";

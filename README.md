@@ -520,10 +520,33 @@ Verwendete Felder der Satzart 6310:
 | 3103 | Geburtsdatum `DDMMYYYY` |
 | 3110 | Geschlecht (`1` = männlich, `2` = weiblich; sonst weggelassen) |
 | 6200 / 6201 | Untersuchungsdatum `DDMMYYYY` / -zeit `HHMMSS` |
-| 8402 | Geräte-/Verfahrenskennung |
+| 8402 | Geräte-/Verfahrenskennung — siehe unten |
 | 8410 / 8411 | Test-Ident / Testbezeichnung |
 | 6220 | Ergebniszeilen (Messwerte, automatisch an Wortgrenzen umgebrochen) |
 | 6227 | Kommentarzeilen (Quelle, SOPInstanceUID, StudyInstanceUID) |
+
+### Feld 8402 — Verfahrenskennung
+
+An diesem Feld erkennt das PVS, aus welchem Verfahren die Daten stammen. Es ist **dasselbe
+Feld**, über das der BITS GDT Mover die Untersuchungstypen zuordnet. Übliche Kennungen:
+
+| 8402 | Verfahren |
+|---|---|
+| `EKG01` | Ruhe-EKG |
+| `EKG02` | Belastungs-EKG |
+| `ERGO01` | Ergometrie |
+| `LUFU01` | Lungenfunktion |
+| `SPIRO01` | Spirometrie |
+| `LZEKG01` | Langzeit-EKG |
+| `LZRR01` / `BDM00` | Langzeit-Blutdruck |
+| `SONO01` | Sonographie |
+| `ECHO01` | Echokardiographie ← Vorgabe dieses Tools |
+
+Der Wert muss zu dem passen, was in MEDICAL OFFICE für dieses Gerät hinterlegt ist —
+einstellbar in der GUI unter *GDT-Einstellungen → Gerätekennung (8402)*.
+
+Nicht verwechseln: **8410** ist die Test-Ident für den einzelnen Messwert innerhalb des
+Satzes, nicht die Verfahrenskennung.
 
 Optional (`Gdt.EmitStructuredTestValues = true`) werden zusätzlich je Messwert die Felder
 `8410` / `8411` / `8420` / `8421` als diskrete Messgrößen ausgegeben.
