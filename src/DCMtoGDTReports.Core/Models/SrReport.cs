@@ -67,10 +67,19 @@ public sealed class SrReport
     /// <summary>Anzahl der vom Messwertfilter entfernten bzw. zusammengefassten Werte.</summary>
     public int FilteredOutCount { get; private set; }
 
+    /// <summary>
+    /// Alle Messwerte vor der Filterung. Wird fuer die Vorschau im GDT-Editor gebraucht,
+    /// damit dort sichtbar ist, was die Auswahl tatsaechlich bewirkt.
+    /// </summary>
+    public IReadOnlyList<MeasurementResult> AllMeasurements { get; private set; } = [];
+
     /// <summary>Uebernimmt das Ergebnis des Messwertfilters und merkt sich, wie viel entfallen ist.</summary>
     public void ApplyFilteredMeasurements(IReadOnlyList<MeasurementResult> filtered)
     {
         ArgumentNullException.ThrowIfNull(filtered);
+
+        if (AllMeasurements.Count == 0) AllMeasurements = Measurements;
+
         FilteredOutCount = Math.Max(0, Measurements.Count - filtered.Count);
         Measurements = filtered;
     }

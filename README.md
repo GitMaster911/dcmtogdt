@@ -192,12 +192,40 @@ Wichtige Einstellungen:
 | `MeasurementShortNames` | Eigene Kurzbezeichnungen, Schlüssel = Code Meaning **oder** Concept-Code (`LN:29436-3`) |
 | `MethodShortNames` | Abkürzungen für lange Messmethoden-Bezeichnungen |
 | `MeasurementFilter` | Auswahl der Messwerte, siehe unten |
+| `MeasurementCatalogPath` | Ablage des gelernten Messwert-Katalogs (`catalog.json`) |
 | `GdtTemplate` | Eigener GDT-Aufbau, siehe unten |
 | `Update` | Zentrale Aktualisierung, siehe unten |
 
 ---
 
+## Messwerte auswählen
+
+Das Programm **lernt aus den ausgewerteten SR-Dateien**, welche Messgrößen, Regionen und
+Aufnahmemodi das Gerät liefert. Daraus entsteht eine Ankreuzliste — Sie wählen bequem aus,
+statt Textmuster zu tippen.
+
+* Jede Auswertung ergänzt den Katalog automatisch (`catalog.json` neben der Konfiguration)
+* **„Aus SR-Dateien lernen"** liest mehrere Dateien auf einmal ein, ohne GDT-Dateien zu schreiben
+* Die Auswahl treffen Sie unter **„GDT-Aufbau bearbeiten" → Reiter „Verfügbare Messwerte"**
+* Drei Ebenen: **Messgrößen**, **Regionen** und **Aufnahmemodi** — so lässt sich z. B.
+  `Lateral Mitral Annulus` behalten und `Medial Mitral Annulus` abwählen
+* Die Vorschau darunter zeigt sofort, was übrig bleibt
+
+An der Referenzdatei lernt das Programm **43 Messgrößen, 30 Regionen und 4 Aufnahmemodi**.
+
+**Zwei Sicherungen gegen Datenverlust:**
+
+* Ohne den Haken *„Nur angekreuzte Messwerte übernehmen"* wird nichts gefiltert
+* Neu auftauchende Messgrößen sind immer angekreuzt. Über *„Neue, noch unbekannte Messwerte
+  mit übernehmen"* steuern Sie, ob unbekannte Werte durchgelassen werden — Standard ist **ja**,
+  damit eine neue Messgröße nicht unbemerkt im Befund fehlt.
+
+---
+
 ## Messwertfilter
+
+Zusätzlich zur Ankreuzliste gibt es Textmuster für Fortgeschrittene. Beides lässt sich
+kombinieren; die Ankreuzliste wird zuerst angewendet.
 
 Der Vivid T8 liefert pro Untersuchung sehr viele Werte — in der Referenzdatei bleiben nach der
 Dublettenbereinigung noch **200 Messwerte** übrig (u. a. 18 Strain-Segmente und je Herzschlag
@@ -267,9 +295,9 @@ Datei stehen und was drin steht — ohne Codekenntnisse:
 
 * Jede Zeile ist ein GDT-Feld mit **Ankreuzbox**, Feldkennung, Inhalt und Klartextbeschreibung
 * Zeilen lassen sich hinzufügen, entfernen und verschieben
-* **Platzhalter** in geschweiften Klammern werden beim Erzeugen ersetzt — per Doppelklick
-  aus der Liste in die ausgewählte Zeile einfügbar
-* Zwei Live-Vorschauen: einmal lesbar wie im Krankenblatt, einmal die technische GDT-Datei
+* Reiter **„Verfügbare Messwerte"**: Ankreuzliste der gelernten Messgrößen, Regionen und Modi
+* Reiter **„Platzhalter"**: Platzhalter per Doppelklick in die ausgewählte Zeile einfügen
+* Live-Vorschau, wie der Eintrag im Krankenblatt aussieht, samt Anzahl der übernommenen Messwerte
 * **„Standard wiederherstellen"** setzt den eingebauten Aufbau zurück
 
 Ohne den Haken *„Eigenen GDT-Aufbau verwenden"* bleibt der fest eingebaute Standardaufbau
@@ -600,6 +628,10 @@ Abgedeckt sind unter anderem:
 * Parsing einer `dsr2xml`-XML-Struktur inkl. Dublettenbereinigung
 * Messwertfilter: Muster mit Platzhaltern, Vorrang der Ausschlusslisten, Zusammenfassung
   von Wiederholungsmessungen
+* Messwert-Katalog: Lernen aus Berichten, Ankreuzauswahl je Messgröße/Region/Modus,
+  Umgang mit unbekannten Werten, Speichern und Laden
+* GDT-Vorlage: Platzhalterauflösung, mehrzeilige Messwertausgabe, Schutz vor ungültigen
+  Feldkennungen
 * Updateprüfung: Versionsvergleich, Auflösung relativer Paketpfade, Ablehnung fehlender
   oder falscher SHA256-Prüfsummen
 * End-to-End-Lauf mit einer lokalen `SR*.dcm` bis zur validierten GDT-Datei (wird ohne

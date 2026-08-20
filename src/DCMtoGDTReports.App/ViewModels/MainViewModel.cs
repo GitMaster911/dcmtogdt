@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using DCMtoGDTReports.Core.Catalog;
 using DCMtoGDTReports.Core.Configuration;
 using DCMtoGDTReports.Core.Gdt;
 using DCMtoGDTReports.Core.Logging;
@@ -77,6 +78,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
         InstallUpdateCommand = new RelayCommand(InstallUpdateAsync, () => _pendingUpdate is not null);
         EditTemplateCommand = new RelayCommand(EditTemplate);
         ApplyCompactProfileCommand = new RelayCommand(ApplyCompactProfile);
+        LearnFromFilesCommand = new RelayCommand(LearnFromFilesAsync);
 
         RefreshDcmtkStatus();
         RefreshDashboard();
@@ -105,6 +107,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public RelayCommand InstallUpdateCommand { get; }
     public RelayCommand EditTemplateCommand { get; }
     public RelayCommand ApplyCompactProfileCommand { get; }
+    public RelayCommand LearnFromFilesCommand { get; }
 
     #endregion
 
@@ -600,15 +603,80 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Oeffnet den Vorlagen-Editor. Als Vorschau dient die zuletzt analysierte Datei.</summary>
     private void EditTemplate()
     {
-        var dialog = new TemplateEditorWindow(_settings, _lastReport) { Owner = Application.Current?.MainWindow };
+        var catalogService = CreateCatalogService();
+        var dialog = new TemplateEditorWindow(_settings, catalogService.Load(), _lastReport)
+        {
+            Owner = Application.Current?.MainWindow
+        };
+
         if (dialog.ShowDialog() != true) return;
 
         _settings.GdtTemplate = dialog.EditedTemplate;
+        catalogService.Save(dialog.EditedCatalog);
         SaveSettings();
+
+        var catalog = dialog.EditedCatalog;
+        Log(catalog.Enabled
+            ? $"Messwertauswahl aktiv: {catalog.AllEntries.Count(e => e.Selected)} von {catalog.AllEntries.Count()} Eintraegen."
+            : "Messwertauswahl gespeichert, es werden weiterhin alle Werte uebernommen.");
 
         Log(_settings.GdtTemplate.Enabled
             ? $"Eigener GDT-Aufbau aktiv ({_settings.GdtTemplate.Lines.Count(l => l.Enabled)} aktive Zeilen)."
             : "GDT-Aufbau gespeichert, es wird weiter der Standardaufbau verwendet.");
+    }
+
+    /// <summary>
+    /// Wertet mehrere SR-Dateien aus, um den Messwert-Katalog zu fuellen. Es wird nichts
+    /// geschrieben - die Dateien werden nur gelesen und die gefundenen Typen gemerkt.
+    /// </summary>
+    private async Task LearnFromFilesAsync()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "SR-Dateien zum Lernen auswaehlen",
+            Filter = "DICOM SR (SR*.dcm)|SR*.dcm|DICOM-Dateien (*.dcm)|*.dcm|Alle Dateien (*.*)|*.*",
+            Multiselect = true,
+            InitialDirectory = Directory.Exists(InputFolder) ? InputFolder : null
+        };
+
+        if (dialog.ShowDialog() != true || dialog.FileNames.Length == 0) return;
+
+        StatusText = $"Lerne aus {dialog.FileNames.Length} Datei(en) ...";
+        var succeeded = 0;
+
+        foreach (var file in dialog.FileNames)
+        {
+            try
+            {
+                // AnalyzeAsync ergaenzt den Katalog selbst und schreibt keine GDT-Datei.
+                await Task.Run(() => _processor.AnalyzeAsync(file)).ConfigureAwait(true);
+                succeeded++;
+            }
+            catch (Exception ex)
+            {
+                Log($"{Path.GetFileName(file)}: {ex.Message}");
+            }
+        }
+
+        var catalog = CreateCatalogService().Load();
+        StatusText = $"{succeeded} Datei(en) ausgewertet";
+        Log($"Katalog aktualisiert: {catalog.Measurements.Count} Messgroessen, "
+            + $"{catalog.Regions.Count} Regionen, {catalog.ImageModes.Count} Modi.");
+
+        MessageBox.Show(
+            $"Aus {succeeded} Datei(en) gelernt." + Environment.NewLine + Environment.NewLine
+            + $"Bekannt sind jetzt {catalog.Measurements.Count} Messgroessen, {catalog.Regions.Count} Regionen "
+            + $"und {catalog.ImageModes.Count} Aufnahmemodi." + Environment.NewLine + Environment.NewLine
+            + "Die Auswahl treffen Sie unter \"GDT-Aufbau bearbeiten\".",
+            "Messwerte gelernt", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
+    private MeasurementCatalogService CreateCatalogService()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.MeasurementCatalogPath))
+            _settingsService.ApplyFallbacks(_settings);
+
+        return new MeasurementCatalogService(_settings.MeasurementCatalogPath);
     }
 
     /// <summary>

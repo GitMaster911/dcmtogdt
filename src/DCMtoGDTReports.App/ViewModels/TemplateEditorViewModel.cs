@@ -2,8 +2,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using DCMtoGDTReports.Core.Catalog;
 using DCMtoGDTReports.Core.Configuration;
+using DCMtoGDTReports.Core.Filtering;
 using DCMtoGDTReports.Core.Gdt;
+using DCMtoGDTReports.Core.Mapping;
 using DCMtoGDTReports.Core.Models;
 using DCMtoGDTReports.Core.Templates;
 
@@ -72,15 +75,20 @@ public sealed class TemplateLineViewModel : INotifyPropertyChanged
 /// </summary>
 public sealed class TemplateEditorViewModel : INotifyPropertyChanged
 {
+    private readonly AppSettings _settings;
     private readonly GdtSettings _gdtSettings;
     private readonly SrReport _previewReport;
     private readonly Encoding _encoding;
 
-    public TemplateEditorViewModel(AppSettings settings, SrReport? previewReport = null)
+    public TemplateEditorViewModel(AppSettings settings, MeasurementCatalog catalog, SrReport? previewReport = null)
     {
+        _settings = settings;
         _gdtSettings = settings.Gdt;
         _previewReport = previewReport ?? CreateDemoReport();
         _encoding = new GdtFileWriter(settings.Gdt).Encoding;
+
+        Catalog = new CatalogSelectionViewModel(catalog);
+        Catalog.SelectionChanged += (_, _) => UpdatePreview();
 
         var template = settings.GdtTemplate is { Lines.Count: > 0 }
             ? settings.GdtTemplate
@@ -98,6 +106,8 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
 
         UpdatePreview();
     }
+
+    public CatalogSelectionViewModel Catalog { get; }
 
     public ObservableCollection<TemplateLineViewModel> Lines { get; } = [];
 
@@ -146,11 +156,11 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
         private set { _preview = value; OnPropertyChanged(); }
     }
 
-    private string _readablePreview = string.Empty;
-    public string ReadablePreview
+    private string _measurementCount = string.Empty;
+    public string MeasurementCount
     {
-        get => _readablePreview;
-        private set { _readablePreview = value; OnPropertyChanged(); }
+        get => _measurementCount;
+        private set { _measurementCount = value; OnPropertyChanged(); }
     }
 
     private string _validationMessage = string.Empty;
@@ -165,6 +175,9 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
         Enabled = UseTemplate,
         Lines = Lines.Select(l => l.ToModel()).ToList()
     };
+
+    /// <summary>Der Katalog mit den in der Oberflaeche gesetzten Haken.</summary>
+    public MeasurementCatalog ToCatalog() => Catalog.ToCatalog();
 
     private void Add(TemplateLineViewModel line)
     {
@@ -238,18 +251,44 @@ public sealed class TemplateEditorViewModel : INotifyPropertyChanged
 
         try
         {
+            var report = BuildFilteredPreviewReport();
             var builder = new Gdt6310Builder(_gdtSettings) { Template = ToTemplate() };
-            var fields = builder.BuildFields(_previewReport);
+            var fields = builder.BuildFields(report);
 
-            Preview = GdtLineFormatter.Format(fields, _encoding).Replace("\r\n", Environment.NewLine);
-            ReadablePreview = string.Join(Environment.NewLine,
+            Preview = string.Join(Environment.NewLine,
                 fields.Where(f => f.FieldId is "6220" or "6227").Select(f => f.Content));
+            MeasurementCount = $"{report.Measurements.Count} von {report.AllMeasurements.Count} Messwerten";
         }
         catch (Exception ex)
         {
             Preview = $"Vorschau nicht moeglich: {ex.Message}";
-            ReadablePreview = string.Empty;
+            MeasurementCount = string.Empty;
         }
+    }
+
+    /// <summary>Wendet die aktuelle Ankreuzauswahl auf die Vorschaudaten an.</summary>
+    private SrReport BuildFilteredPreviewReport()
+    {
+        var source = _previewReport.AllMeasurements.Count > 0
+            ? _previewReport.AllMeasurements
+            : _previewReport.Measurements;
+
+        var report = new SrReport
+        {
+            Header = _previewReport.Header,
+            Engine = _previewReport.Engine,
+            Measurements = source,
+            RawMeasurementCount = _previewReport.RawMeasurementCount
+        };
+
+        var filter = new MeasurementFilter(
+            _settings.MeasurementFilter,
+            _gdtSettings,
+            new MeasurementMapper(_settings.MeasurementShortNames, _settings.MethodShortNames),
+            Catalog.ToCatalog());
+
+        report.ApplyFilteredMeasurements(filter.Apply(source));
+        return report;
     }
 
     /// <summary>Beispieldaten, falls noch keine SR-Datei analysiert wurde.</summary>

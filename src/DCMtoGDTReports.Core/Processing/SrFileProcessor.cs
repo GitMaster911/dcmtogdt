@@ -1,3 +1,4 @@
+using DCMtoGDTReports.Core.Catalog;
 using DCMtoGDTReports.Core.Configuration;
 using DCMtoGDTReports.Core.Dicom;
 using DCMtoGDTReports.Core.Filtering;
@@ -25,10 +26,10 @@ public sealed class SrFileProcessor(
     private readonly ILogger _logger = logger ?? NullLogger<SrFileProcessor>.Instance;
     private readonly MeasurementMapper _mapper = new(settings.MeasurementShortNames, settings.MethodShortNames);
     private readonly GdtFileWriter _gdtWriter = new(settings.Gdt, settings.GdtTemplate);
-    private readonly MeasurementFilter _filter = new(
-        settings.MeasurementFilter,
-        settings.Gdt,
-        new MeasurementMapper(settings.MeasurementShortNames, settings.MethodShortNames));
+    private readonly MeasurementCatalogService _catalogService = new(
+        string.IsNullOrWhiteSpace(settings.MeasurementCatalogPath)
+            ? Path.Combine(Path.GetTempPath(), "DCMtoGDTReports-catalog.json")
+            : settings.MeasurementCatalogPath);
 
     /// <summary>Wertet eine SR-Datei aus, ohne etwas zu schreiben (Button "Testdatei analysieren").</summary>
     public async Task<SrReport> AnalyzeAsync(string sourceFilePath, string? debugXmlPath = null, CancellationToken ct = default)
@@ -47,11 +48,47 @@ public sealed class SrFileProcessor(
         }
     }
 
-    /// <summary>Kurznamen und Zahlenformat anwenden, danach den konfigurierten Messwertfilter.</summary>
+    /// <summary>
+    /// Kurznamen und Zahlenformat anwenden, aus dem Bericht lernen und danach den
+    /// konfigurierten Messwertfilter samt Katalogauswahl anwenden.
+    /// </summary>
     private void PrepareMeasurements(SrReport report)
     {
         _mapper.Apply(report.Measurements, _settings.Gdt);
-        report.ApplyFilteredMeasurements(_filter.Apply(report.Measurements));
+
+        var catalog = LearnFromReport(report);
+        var filter = new MeasurementFilter(
+            _settings.MeasurementFilter,
+            _settings.Gdt,
+            new MeasurementMapper(_settings.MeasurementShortNames, _settings.MethodShortNames),
+            catalog);
+
+        report.ApplyFilteredMeasurements(filter.Apply(report.Measurements));
+    }
+
+    /// <summary>
+    /// Ergaenzt den Katalog um neu gesehene Messgroessen, Regionen und Aufnahmemodi.
+    /// Neue Eintraege sind immer ausgewaehlt, damit nichts unbemerkt wegfaellt.
+    /// </summary>
+    private MeasurementCatalog LearnFromReport(SrReport report)
+    {
+        try
+        {
+            var catalog = _catalogService.Load();
+            var added = MeasurementCatalogService.Learn(catalog, report);
+            _catalogService.Save(catalog);
+
+            if (added > 0)
+                _logger.LogInformation("{Count} neue Messwert-Typen in den Katalog aufgenommen.", added);
+
+            return catalog;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Der Katalog ist eine Komfortfunktion - die Verarbeitung laeuft auch ohne ihn weiter.
+            _logger.LogWarning(ex, "Messwert-Katalog konnte nicht aktualisiert werden.");
+            return new MeasurementCatalog();
+        }
     }
 
     /// <summary>Vollstaendige Verarbeitung inklusive GDT-Erzeugung und Registrierung.</summary>

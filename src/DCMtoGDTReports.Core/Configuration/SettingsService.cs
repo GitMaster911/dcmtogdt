@@ -69,7 +69,8 @@ public sealed class SettingsService
             ArchiveFolder = Path.Combine(root, "archive"),
             ErrorFolder = Path.Combine(root, "error"),
             LogFolder = Path.Combine(root, "logs"),
-            RegistryDatabasePath = Path.Combine(root, "processed.db")
+            RegistryDatabasePath = Path.Combine(root, "processed.db"),
+            MeasurementCatalogPath = Path.Combine(root, "catalog.json")
         };
         return settings;
     }
@@ -82,6 +83,8 @@ public sealed class SettingsService
             settings.LogFolder = Path.Combine(root, "logs");
         if (string.IsNullOrWhiteSpace(settings.RegistryDatabasePath))
             settings.RegistryDatabasePath = Path.Combine(root, "processed.db");
+        if (string.IsNullOrWhiteSpace(settings.MeasurementCatalogPath))
+            settings.MeasurementCatalogPath = Path.Combine(root, "catalog.json");
     }
 
     /// <summary>Legt alle konfigurierten Arbeitsordner an, soweit gesetzt.</summary>

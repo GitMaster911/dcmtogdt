@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -6,8 +6,9 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Company>brans IT solutions</Company>
     <Product>DCMtoGDTReports</Product>
-    <Copyright>© brans IT solutions</Copyright>
-    <Version>1.2.0</Version>
+    <Copyright>Â© brans IT solutions</Copyright>
+    <Version>1.3.0</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 </Project>
+

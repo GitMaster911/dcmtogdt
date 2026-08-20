@@ -330,8 +330,11 @@
                                 <Button Content="GDT Testdatei erzeugen" Margin="0,0,8,8"
                                         Command="{Binding CreateTestGdtCommand}" />
                                 <Button Content="GDT-Aufbau bearbeiten" Margin="0,0,8,8"
-                                        ToolTip="Felder der GDT-Datei per Ankreuzbox und Platzhalter zusammenstellen"
+                                        ToolTip="Felder der GDT-Datei und Messwertauswahl per Ankreuzbox zusammenstellen"
                                         Command="{Binding EditTemplateCommand}" />
+                                <Button Content="Aus SR-Dateien lernen" Margin="0,0,8,8"
+                                        ToolTip="Mehrere SR-Dateien einlesen, um die verfuegbaren Messwerte zu ermitteln"
+                                        Command="{Binding LearnFromFilesCommand}" />
                                 <Button Content="{Binding WatcherButtonText}" Margin="0,0,8,8"
                                         Style="{StaticResource AccentButtonStyle}"
                                         Command="{Binding ToggleWatcherCommand}" />

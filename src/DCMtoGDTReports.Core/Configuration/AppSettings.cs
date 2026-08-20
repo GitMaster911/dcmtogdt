@@ -30,6 +30,9 @@ public sealed class AppSettings
     /// <summary>Ablageort der SQLite-Registry. Leer = Standardpfad neben der Konfigurationsdatei.</summary>
     public string RegistryDatabasePath { get; set; } = string.Empty;
 
+    /// <summary>Ablageort des gelernten Messwert-Katalogs. Leer = catalog.json neben der Konfiguration.</summary>
+    public string MeasurementCatalogPath { get; set; } = string.Empty;
+
     /// <summary>Ablageort der Logdateien. Leer = Unterordner "logs".</summary>
     public string LogFolder { get; set; } = string.Empty;
 

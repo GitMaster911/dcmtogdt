@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using DCMtoGDTReports.Core.Catalog;
 using DCMtoGDTReports.Core.Configuration;
 using DCMtoGDTReports.Core.Dicom;
 using DCMtoGDTReports.Core.Mapping;
@@ -12,22 +13,26 @@ namespace DCMtoGDTReports.Core.Filtering;
 /// Der GE Vivid T8 liefert pro Untersuchung mehrere hundert Werte (u. a. 18 Strain-Segmente und
 /// je Herzschlag einen eigenen EF-Wert), was fuer einen Krankenblatteintrag meist zu viel ist.
 ///
-/// Ist der Filter deaktiviert, wird die Liste unveraendert durchgereicht - es gehen also
-/// niemals unbemerkt Werte verloren.
+/// Zwei Wege fuehren zur Auswahl: die Ankreuzliste des gelernten Katalogs und - fuer
+/// Fortgeschrittene - Textmuster. Beide lassen sich kombinieren.
 /// </summary>
 public sealed class MeasurementFilter(
     MeasurementFilterSettings settings,
     GdtSettings gdtSettings,
-    MeasurementMapper mapper)
+    MeasurementMapper mapper,
+    MeasurementCatalog? catalog = null)
 {
     private readonly MeasurementFilterSettings _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     private readonly GdtSettings _gdt = gdtSettings ?? throw new ArgumentNullException(nameof(gdtSettings));
     private readonly MeasurementMapper _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+    private readonly MeasurementCatalog? _catalog = catalog;
 
     public IReadOnlyList<MeasurementResult> Apply(IReadOnlyList<MeasurementResult> measurements)
     {
         ArgumentNullException.ThrowIfNull(measurements);
-        if (!_settings.Enabled) return measurements;
+
+        var catalogActive = _catalog is { Enabled: true } && !_catalog.IsEmpty;
+        if (!_settings.Enabled && !catalogActive) return measurements;
 
         var includeConcepts = Compile(_settings.IncludeConcepts);
         var excludeConcepts = Compile(_settings.ExcludeConcepts);
@@ -37,11 +42,13 @@ public sealed class MeasurementFilter(
         var excludeModes = Compile(_settings.ExcludeImageModes);
 
         var selected = measurements.Where(m =>
-            (!_settings.OnlySelectedValues || !string.IsNullOrEmpty(m.SelectionStatus))
-            && (!_settings.OnlyMappedMeasurements || _mapper.HasMapping(m))
-            && Passes(includeConcepts, excludeConcepts, m.SourceCode, m.Name, m.ShortName)
-            && Passes(includeSites, excludeSites, m.FindingSite)
-            && Passes(includeModes, excludeModes, m.ImageMode));
+            (!catalogActive || PassesCatalog(m))
+            && (!_settings.Enabled || (
+                (!_settings.OnlySelectedValues || !string.IsNullOrEmpty(m.SelectionStatus))
+                && (!_settings.OnlyMappedMeasurements || _mapper.HasMapping(m))
+                && Passes(includeConcepts, excludeConcepts, m.SourceCode, m.Name, m.ShortName)
+                && Passes(includeSites, excludeSites, m.FindingSite)
+                && Passes(includeModes, excludeModes, m.ImageMode))));
 
         var result = CondenseRepeatedValues(selected.ToList());
 
@@ -49,6 +56,27 @@ public sealed class MeasurementFilter(
             result = result.Take(_settings.MaxMeasurements).ToList();
 
         return result;
+    }
+
+    /// <summary>
+    /// Prueft die Ankreuzauswahl des Katalogs. Eintraege, die noch nicht gelernt wurden,
+    /// werden je nach Einstellung uebernommen - damit gehen neue Messgroessen nicht verloren.
+    /// </summary>
+    private bool PassesCatalog(MeasurementResult measurement)
+    {
+        var catalog = _catalog!;
+
+        return IsAllowed(catalog.Measurements, MeasurementCatalogService.MeasurementKey(measurement))
+            && IsAllowed(catalog.Regions, measurement.FindingSite)
+            && IsAllowed(catalog.ImageModes, measurement.ImageMode);
+
+        bool IsAllowed(List<CatalogEntry> entries, string key)
+        {
+            if (string.IsNullOrWhiteSpace(key) || entries.Count == 0) return true;
+
+            var entry = entries.FirstOrDefault(e => string.Equals(e.Key, key, StringComparison.OrdinalIgnoreCase));
+            return entry is null ? catalog.IncludeUnknown : entry.Selected;
+        }
     }
 
     /// <summary>

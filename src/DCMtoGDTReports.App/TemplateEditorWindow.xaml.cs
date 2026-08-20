@@ -1,5 +1,6 @@
 using System.Windows;
 using DCMtoGDTReports.App.ViewModels;
+using DCMtoGDTReports.Core.Catalog;
 using DCMtoGDTReports.Core.Configuration;
 using DCMtoGDTReports.Core.Models;
 using DCMtoGDTReports.Core.Templates;
@@ -10,15 +11,18 @@ public partial class TemplateEditorWindow : Window
 {
     private readonly TemplateEditorViewModel _viewModel;
 
-    public TemplateEditorWindow(AppSettings settings, SrReport? previewReport = null)
+    public TemplateEditorWindow(AppSettings settings, MeasurementCatalog catalog, SrReport? previewReport = null)
     {
         InitializeComponent();
-        _viewModel = new TemplateEditorViewModel(settings, previewReport);
+        _viewModel = new TemplateEditorViewModel(settings, catalog, previewReport);
         DataContext = _viewModel;
     }
 
     /// <summary>Die bearbeitete Vorlage - nur gueltig, wenn der Dialog mit true geschlossen wurde.</summary>
     public GdtTemplate EditedTemplate => _viewModel.ToTemplate();
+
+    /// <summary>Der Katalog mit der getroffenen Messwertauswahl.</summary>
+    public MeasurementCatalog EditedCatalog => _viewModel.ToCatalog();
 
     private void OnAccept(object sender, RoutedEventArgs e)
     {

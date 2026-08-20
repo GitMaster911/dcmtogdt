@@ -1,8 +1,8 @@
 <Window x:Class="DCMtoGDTReports.App.TemplateEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GDT-Aufbau bearbeiten" Height="820" Width="1280"
-        MinHeight="620" MinWidth="1000"
+        Title="GDT-Aufbau bearbeiten" Height="860" Width="1340"
+        MinHeight="640" MinWidth="1060"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource WindowBackgroundBrush}"
         FontFamily="Segoe UI" TextOptions.TextFormattingMode="Display">
@@ -13,7 +13,7 @@
             <StackPanel>
                 <TextBlock Text="GDT-Aufbau bearbeiten" FontSize="17" FontWeight="SemiBold" Foreground="White" />
                 <TextBlock Foreground="#CCFFFFFF" FontSize="12" Margin="0,2,0,0" TextWrapping="Wrap"
-                           Text="Jede Zeile ist ein GDT-Feld. Haken setzen oder entfernen bestimmt, was in der Datei landet. Platzhalter in geschweiften Klammern werden beim Erzeugen durch die echten Werte ersetzt." />
+                           Text="Links legen Sie fest, welche Zeilen die GDT-Datei enthaelt. Rechts waehlen Sie aus, welche Messwerte uebernommen werden. Unten sehen Sie sofort das Ergebnis." />
             </StackPanel>
         </Border>
 
@@ -35,17 +35,16 @@
 
         <Grid Margin="16">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.1*" />
+                <ColumnDefinition Width="1.35*" />
                 <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="1*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="1.6*" />
+                <RowDefinition Height="1.5*" />
                 <RowDefinition Height="1*" />
             </Grid.RowDefinitions>
 
-            <!-- Kopfbereich -->
             <Border Grid.ColumnSpan="3" Style="{StaticResource CardStyle}" Padding="14,12">
                 <StackPanel>
                     <CheckBox IsChecked="{Binding UseTemplate}" FontWeight="SemiBold"
@@ -56,7 +55,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Zeilenliste -->
+            <!-- Zeilen der GDT-Datei -->
             <Border Grid.Row="1" Style="{StaticResource CardStyle}">
                 <DockPanel>
                     <TextBlock DockPanel.Dock="Top" Text="Zeilen der GDT-Datei" Style="{StaticResource CardHeaderStyle}" />
@@ -94,51 +93,101 @@
                 </DockPanel>
             </Border>
 
-            <!-- Platzhalter -->
-            <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource CardStyle}">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="Platzhalter" Style="{StaticResource CardHeaderStyle}" />
-                    <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontSize="11" TextWrapping="Wrap"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Text="Zeile links auswaehlen, Platzhalter anklicken und einfuegen. Doppelklick fuegt ebenfalls ein." />
-                    <Button DockPanel.Dock="Bottom" Content="In Zeile einfuegen" Margin="0,8,0,0"
-                            Command="{Binding InsertPlaceholderCommand}" />
-                    <ListBox ItemsSource="{Binding Placeholders}" SelectedItem="{Binding SelectedPlaceholder}"
-                             MouseDoubleClick="OnPlaceholderDoubleClick"
-                             BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Margin="2,3">
-                                    <TextBlock Text="{Binding Token}" FontFamily="Consolas" FontSize="12"
-                                               Foreground="{StaticResource AccentBrush}" />
-                                    <TextBlock Text="{Binding Description}" FontSize="10.5" TextWrapping="Wrap"
-                                               Foreground="{StaticResource TextSecondaryBrush}" />
+            <!-- Messwertauswahl und Platzhalter -->
+            <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource CardStyle}" Padding="10">
+                <TabControl Background="Transparent" BorderThickness="0">
+
+                    <TabItem Header="Verfuegbare Messwerte">
+                        <DockPanel Margin="0,10,0,0">
+                            <StackPanel DockPanel.Dock="Top">
+                                <TextBlock Text="{Binding Catalog.StatusText}" TextWrapping="Wrap" FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8" />
+                                <CheckBox Content="Nur angekreuzte Messwerte uebernehmen" FontWeight="SemiBold"
+                                          IsChecked="{Binding Catalog.UseSelection}" Margin="0,0,0,6" />
+                                <CheckBox Content="Neue, noch unbekannte Messwerte mit uebernehmen" Margin="0,0,0,8"
+                                          IsEnabled="{Binding Catalog.UseSelection}"
+                                          ToolTip="Verhindert, dass eine neue Messgroesse unbemerkt fehlt"
+                                          IsChecked="{Binding Catalog.IncludeUnknown}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                    <Button Content="Alle" Padding="10,4" Margin="0,0,6,0" Command="{Binding Catalog.SelectAllCommand}" />
+                                    <Button Content="Keine" Padding="10,4" Command="{Binding Catalog.SelectNoneCommand}" />
                                 </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </DockPanel>
+                                <TextBlock Text="{Binding Catalog.SelectionSummary}" FontSize="11" Margin="0,0,0,8"
+                                           Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel IsEnabled="{Binding Catalog.UseSelection}">
+                                    <TextBlock Text="Messgroessen" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" />
+                                    <ItemsControl ItemsSource="{Binding Catalog.Measurements}" Margin="0,0,0,12">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding Selected}" Margin="0,2"
+                                                          Content="{Binding Label}" ToolTip="{Binding Info}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="Regionen" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" />
+                                    <ItemsControl ItemsSource="{Binding Catalog.Regions}" Margin="0,0,0,12">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding Selected}" Margin="0,2"
+                                                          Content="{Binding Label}" ToolTip="{Binding Info}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <TextBlock Text="Aufnahmemodi" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,4" />
+                                    <ItemsControl ItemsSource="{Binding Catalog.ImageModes}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <CheckBox IsChecked="{Binding Selected}" Margin="0,2"
+                                                          Content="{Binding Label}" ToolTip="{Binding Info}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </DockPanel>
+                    </TabItem>
+
+                    <TabItem Header="Platzhalter">
+                        <DockPanel Margin="0,10,0,0">
+                            <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       Text="Zeile links auswaehlen, Platzhalter anklicken und einfuegen. Doppelklick fuegt ebenfalls ein." />
+                            <Button DockPanel.Dock="Bottom" Content="In Zeile einfuegen" Margin="0,8,0,0"
+                                    Command="{Binding InsertPlaceholderCommand}" />
+                            <ListBox ItemsSource="{Binding Placeholders}" SelectedItem="{Binding SelectedPlaceholder}"
+                                     MouseDoubleClick="OnPlaceholderDoubleClick"
+                                     BorderBrush="{StaticResource CardBorderBrush}" BorderThickness="1">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="2,3">
+                                            <TextBlock Text="{Binding Token}" FontFamily="Consolas" FontSize="12"
+                                                       Foreground="{StaticResource AccentBrush}" />
+                                            <TextBlock Text="{Binding Description}" FontSize="10.5" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </TabItem>
+                </TabControl>
             </Border>
 
             <!-- Vorschau -->
-            <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0">
+            <Border Grid.Row="2" Grid.ColumnSpan="3" Style="{StaticResource CardStyle}" Margin="0">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="So liest es sich im Krankenblatt"
-                               Style="{StaticResource CardHeaderStyle}" />
-                    <TextBox Text="{Binding ReadablePreview, Mode=OneWay}" IsReadOnly="True"
-                             FontFamily="Consolas" FontSize="11.5" TextWrapping="NoWrap"
-                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                             VerticalContentAlignment="Top" />
-                </DockPanel>
-            </Border>
-
-            <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0">
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Top" Text="GDT-Datei (technisch)" Style="{StaticResource CardHeaderStyle}" />
+                    <Grid DockPanel.Dock="Top">
+                        <TextBlock Text="So liest es sich im Krankenblatt" Style="{StaticResource CardHeaderStyle}" />
+                        <TextBlock Text="{Binding MeasurementCount}" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
+                    </Grid>
                     <TextBox Text="{Binding Preview, Mode=OneWay}" IsReadOnly="True"
-                             Background="{StaticResource LogBackgroundBrush}"
-                             Foreground="{StaticResource LogForegroundBrush}" BorderThickness="0"
-                             FontFamily="Consolas" FontSize="11" TextWrapping="NoWrap"
+                             FontFamily="Consolas" FontSize="11.5" TextWrapping="NoWrap"
                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
                              VerticalContentAlignment="Top" />
                 </DockPanel>
